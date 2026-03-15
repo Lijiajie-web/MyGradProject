@@ -40,6 +40,28 @@ The learner dashboard visualizes learning records, learner profile, and prelimin
 ![Learner Dashboard](assets/dashboard.png)
 
 
+## Project Highlights / 项目亮点
+
+### 1. Teaching-Oriented System Design / 面向教学场景的系统设计
+This project is designed specifically for programming-course practice rather than for general online judging or commercial recommendation scenarios. It focuses on teaching support, learner tracking, and process-oriented guidance.  
+本项目面向程序设计课程练习场景构建，而不是通用在线评测平台或商业推荐场景，重点在于教学支持、学习过程追踪与面向过程的指导。
+
+### 2. Learning-Log Driven Support / 基于学习日志的支持机制
+The system records user submissions, problem information, status, and timestamps in the database, making it possible to trace learning processes rather than only storing static results.  
+系统将用户提交记录、题目信息、状态和时间戳保存到数据库中，使学习过程可以被追踪，而不仅仅是保存静态结果。
+
+### 3. Learner Modeling and Preliminary Guidance / 学习画像与初步个性化指导
+The current version visualizes learner profiles and generates preliminary guidance based on learning history and weak-point diagnosis, which helps transform the platform from a static problem bank into a teaching-support prototype.  
+当前版本能够基于学习历史和薄弱项诊断生成初步指导，并通过学习画像进行可视化展示，使平台从静态题库进一步转变为教学支持原型。
+
+### 4. AST-Assisted Code Analysis / AST 辅助代码分析
+The project introduces Python AST-based code structure analysis to extract simple structural features from submitted code and support feedback generation.  
+项目引入基于 Python AST 的代码结构分析方法，对提交代码提取简单结构特征，并用于辅助反馈生成。
+
+### 5. Integrated Graduation Project Prototype / 一体化毕业设计原型
+The repository demonstrates an integrated prototype that combines backend development, database design, web interaction, learner analytics, and academic-oriented system presentation.  
+本仓库展示的是一个集后端开发、数据库设计、Web 交互、学习分析与学术展示于一体的毕业设计原型。
+
 
 ## Background and Motivation
 Programming courses are highly practice-oriented. Traditional exercise platforms often focus on static problem display and basic submission functions, while providing limited support for learner differentiation, process tracking, and targeted feedback. To address this issue, this project attempts to build a teaching support system that combines problem organization, learning-log recording, learner modeling, and code-structure analysis in one integrated prototype.
@@ -133,3 +155,24 @@ MyGradProject/
     ├── login.html
     ├── register.html
     └── solve.html
+
+
+## Future Work / 后续工作
+
+- Improve the automatic judging mechanism with more rigorous execution and verification strategies  
+- Refine learner modeling and recommendation logic with richer behavior data  
+- Strengthen database constraints and improve data consistency  
+- Enhance interface design and interaction experience  
+- Extend the system toward more complete programming-course teaching support scenarios  
+
+- 引入更加严格的自动评测与验证机制  
+- 基于更丰富的行为数据完善学习画像与推荐逻辑  
+- 强化数据库约束设计，提升数据一致性  
+- 优化界面设计与交互体验  
+- 将系统进一步扩展到更完整的程序设计课程教学支持场景
+
+
+## Academic Use / 学术用途
+
+This repository is intended for undergraduate graduation-project presentation, thesis support, and academic demonstration. It reflects the current prototype implementation of the project and is not positioned as a production-level industrial system.  
+本仓库主要用于本科毕业设计展示、论文写作支持和学术演示，展示的是项目当前原型实现版本，并不定位为生产级工业系统。
