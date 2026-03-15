@@ -7,6 +7,44 @@ This project is a Flask-based teaching support platform designed for programming
 本项目是一个基于 Flask 开发的面向程序设计课程的教学支持平台。系统集成了用户注册与登录、题目展示与筛选、随机组卷、代码提交、学习记录追踪、学习画像可视化、排行榜展示以及数据导出等核心功能。当前版本主要通过学习日志分析、薄弱项诊断和 AST 代码结构分析，为学生提供初步的个性化指导。
 
 ---
+## System Interface Preview / 系统界面展示
+
+### Home Page / 首页
+The home page provides the main entrance to the system, including problem browsing, chapter-based filtering, difficulty-based filtering, and random quiz generation.  
+首页提供系统的主要入口，包括题目浏览、按章节筛选、按难度筛选以及随机组卷等功能。
+
+![Home Page](assets/home.png)
+
+### Login Page / 登录页
+The login page supports user authentication and serves as the main access point for registered users.  
+登录页用于实现用户身份认证，是已注册用户进入系统的主要入口。
+
+![Login Page](assets/login.png)
+
+### Registration Page / 注册页
+The registration page allows new users to create accounts and enter the learning platform.  
+注册页用于新用户创建账号并进入学习平台。
+
+![Registration Page](assets/register.png)
+
+### Problem-Solving Page / 做题页
+The problem-solving page includes problem description, example input/output, code editor, and submission entry, forming the core interaction interface of the system.  
+做题页包含题目描述、输入输出示例、代码编辑区以及提交入口，是系统的核心交互界面。
+
+![Problem-Solving Page](assets/solve.png)
+
+### Learner Dashboard / 学习画像页
+The learner dashboard visualizes learning records, learner profile, and preliminary personalized guidance results.  
+学习画像页用于展示学习记录、能力画像以及初步个性化指导结果。
+
+![Learner Dashboard](assets/dashboard.png)
+
+### Leaderboard / 排行榜页
+The leaderboard page displays comparative learning performance and provides an intuitive ranking view.  
+排行榜页展示用户学习表现的对比结果，提供直观的排名视图。
+
+![Leaderboard](assets/leaderboard.png)
+
 
 ## Background and Motivation
 Programming courses are highly practice-oriented. Traditional exercise platforms often focus on static problem display and basic submission functions, while providing limited support for learner differentiation, process tracking, and targeted feedback. To address this issue, this project attempts to build a teaching support system that combines problem organization, learning-log recording, learner modeling, and code-structure analysis in one integrated prototype.
