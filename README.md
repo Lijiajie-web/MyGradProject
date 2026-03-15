@@ -39,11 +39,6 @@ The learner dashboard visualizes learning records, learner profile, and prelimin
 
 ![Learner Dashboard](assets/dashboard.png)
 
-### Leaderboard / 排行榜页
-The leaderboard page displays comparative learning performance and provides an intuitive ranking view.  
-排行榜页展示用户学习表现的对比结果，提供直观的排名视图。
-
-![Leaderboard](assets/leaderboard.png)
 
 
 ## Background and Motivation
