@@ -155,6 +155,8 @@ Programming courses are highly practice-oriented. Traditional exercise platforms
 - 优化界面设计与交互体验  
 - 将系统进一步扩展到更完整的程序设计课程教学支持场景
 
+---
+
 ## Academic Use / 学术用途
 
 This repository is intended for undergraduate graduation-project presentation, thesis support, and academic demonstration. It reflects the current prototype implementation of the project and is not positioned as a production-level industrial system.  
