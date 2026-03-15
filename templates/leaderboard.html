@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🏆 学霸排行榜</title>
+    <style>
+        body { font-family: '微软雅黑'; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; justify-content: center; padding-top: 50px; }
+        .board { background: white; width: 600px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        .rank-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; transition: 0.3s; }
+        .rank-item:hover { background: #f9f9f9; transform: scale(1.02); }
+        .rank-num { font-size: 1.5em; font-weight: bold; width: 40px; color: #888; }
+        .rank-1 { color: #FFD700; text-shadow: 0 0 5px rgba(255, 215, 0, 0.5); } /* 金牌 */
+        .rank-2 { color: #C0C0C0; } /* 银牌 */
+        .rank-3 { color: #CD7F32; } /* 铜牌 */
+        .user-info { flex: 1; font-weight: bold; font-size: 1.1em; color: #444; }
+        .score { background: #2196F3; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.9em; }
+        .back-link { display: block; text-align: center; margin-top: 20px; color: #666; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="board">
+        <h1>🏆 编程能力排行榜</h1>
+        
+        {% for index in range(leaders|length) %}
+        <div class="rank-item">
+            <!-- 排名序号 (1, 2, 3...) -->
+            <div class="rank-num rank-{{ index + 1 }}">{{ index + 1 }}</div>
+            
+            <div class="user-info">
+                {{ leaders[index][0] }}
+                {% if index == 0 %} 👑 {% endif %}
+            </div>
+            
+            <div class="score">解决 {{ leaders[index][1] }} 题</div>
+        </div>
+        {% endfor %}
+
+        {% if leaders|length == 0 %}
+            <p style="text-align:center; color:#999;">暂时还没有人上榜，快去抢第一吧！</p>
+        {% endif %}
+
+        <a href="/" class="back-link">← 返回首页</a>
+    </div>
+</body>
+</html>

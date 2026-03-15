@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Python 程序设计 - 课程题库</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; display: flex; flex-direction: column; height: 95vh;}
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+        
+        .main-content { display: flex; gap: 20px; flex: 1; overflow: hidden; }
+        
+        /* 左侧 */
+        .sidebar { width: 250px; background: white; padding: 15px; border-radius: 8px; overflow-y: auto; }
+        .sidebar h3 { font-size: 1.1em; color: #333; margin-top: 15px; margin-bottom: 10px; border-left: 4px solid #673AB7; padding-left: 8px;}
+        .sidebar h3:first-child { margin-top: 0; border-left-color: #FF9800; }
+        
+        .link-item { display: block; padding: 8px 12px; color: #555; text-decoration: none; border-radius: 4px; margin-bottom: 4px; transition: 0.2s; font-size: 0.95em;}
+        .link-item:hover { background: #f0f0f0; }
+        .link-item.active { background: #e3f2fd; color: #1976D2; font-weight: bold; }
+        
+        /* 组卷按钮 */
+        .paper-btn { display: block; padding: 12px; background: linear-gradient(135deg, #673AB7, #512DA8); color: white; text-align: center; border-radius: 6px; text-decoration: none; font-weight: bold; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(103, 58, 183, 0.3); transition: 0.3s; }
+        .paper-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(103, 58, 183, 0.4); }
+
+        /* 右侧 */
+        .problem-list { flex: 1; overflow-y: auto; padding-right: 10px; }
+        .problem-box { background: white; border-left: 5px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; position: relative;}
+        .problem-box:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-left-color: #2196F3; }
+        
+        .chapter-tag { background: #f5f5f5; color: #666; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px;}
+        
+        /* 难度标签样式 */
+        .diff-tag { padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; color: white; }
+        .diff-1 { background-color: #81C784; } /* 入门 - 绿 */
+        .diff-2 { background-color: #64B5F6; } /* 进阶 - 蓝 */
+        .diff-3 { background-color: #FFB74D; } /* 挑战 - 橙 */
+        .diff-4 { background-color: #E57373; } /* 专家 - 红 */
+
+        .btn { background-color: #4CAF50; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; float: right; text-decoration: none; font-size: 0.9em; font-weight: bold;}
+        .btn:hover { background-color: #43A047; }
+        
+        .mode-badge { display: inline-block; background: #fff3cd; color: #856404; padding: 8px 15px; border-radius: 20px; font-size: 0.9em; margin-bottom: 15px; border: 1px solid #ffeeba; font-weight: bold;}
+        .empty-tip { text-align: center; color: #999; margin-top: 50px; }
+    </style>
+</head>
+<body>
+    
+    <div class="header">
+        <h1>📚 Python 程序设计 - 智能教学系统</h1>
+        <div class="user-panel">
+            {% if session.get('user_id') %}
+                <span>👤 {{ session.get('user_id') }}</span>
+                <a href="/dashboard" style="margin-left:10px; text-decoration:none; color:#2196F3;">[学习画像]</a>
+                <a href="/leaderboard" style="margin-left:5px; text-decoration:none; color:#FF9800;">[排行榜]</a>
+                <a href="/logout" style="margin-left:5px; text-decoration:none; color:red;">退出</a>
+            {% else %}
+                <a href="/login" style="text-decoration:none; background:#2196F3; color:white; padding:5px 10px; border-radius:4px;">登录</a>
+                <a href="/register" style="text-decoration:none; background:#4CAF50; color:white; padding:5px 10px; border-radius:4px;">注册</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="main-content">
+        <!-- 左侧功能区 -->
+        <div class="sidebar">
+            <a href="/paper" class="paper-btn">✨ 智能组卷 (生成试卷)</a>
+            
+            <h3>📊 按难度筛选</h3>
+            <a href="/" class="link-item {% if not current_tag and not current_diff %}active{% endif %}">全部题目</a>
+            <a href="/?diff=1" class="link-item {% if current_diff == '1' %}active{% endif %}">🌱 入门 (1星)</a>
+            <a href="/?diff=2" class="link-item {% if current_diff == '2' %}active{% endif %}">🚀 进阶 (2星)</a>
+            <a href="/?diff=3" class="link-item {% if current_diff == '3' %}active{% endif %}">🔥 挑战 (3星)</a>
+            <a href="/?diff=4" class="link-item {% if current_diff == '4' %}active{% endif %}">👑 专家 (4星)</a>
+
+            <h3>📑 按章节筛选</h3>
+            {% for tag in all_tags %}
+                <a href="/?tag={{ tag }}" class="link-item {% if current_tag == tag %}active{% endif %}">
+                    {{ tag.split(':')[0] }}
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- 右侧题目 -->
+        <div class="problem-list">
+            {% if mode %}
+                <div class="mode-badge">{{ mode }}</div>
+            {% endif %}
+
+            {% if problems|length == 0 %}
+                <div class="empty-tip">📭 该分类下暂时没有题目</div>
+            {% endif %}
+
+            {% for p in problems %}
+                <div class="problem-box">
+                    <a href="/problem/{{ p[0] }}" class="btn">开始挑战</a>
+                    <h3 style="margin:0 0 10px 0;">
+                        <span style="color:#bbb; font-size:0.8em; margin-right:5px;">{{ p[0] }}</span> 
+                        {{ p[1] }}
+                    </h3>
+                    <div>
+                        <!-- 显示不同颜色的难度标签 -->
+                        {% if p[2] == 1 %} <span class="diff-tag diff-1">入门</span>
+                        {% elif p[2] == 2 %} <span class="diff-tag diff-2">进阶</span>
+                        {% elif p[2] == 3 %} <span class="diff-tag diff-3">挑战</span>
+                        {% else %} <span class="diff-tag diff-4">专家</span>
+                        {% endif %}
+                        
+                        <span class="chapter-tag">{{ p[3] }}</span>
+                    </div>
+                    <p style="color: #666; font-size: 0.9em; margin-bottom: 0; margin-top: 10px; line-height: 1.5;">
+                        {{ p[4][:60] }}...
+                    </p>
+                    <div style="clear:both"></div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</body>
+</html>

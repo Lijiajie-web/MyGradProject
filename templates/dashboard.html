@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>个性化学习分析报告</title>
+    <!-- 引入 Vue.js (满足毕设要求) -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #333; }
+        .card { background: white; padding: 25px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; }
+        .btn { background: #2196F3; color: white; text-decoration: none; padding: 10px 25px; border-radius: 20px; display: inline-block; margin-top: 10px; font-weight: bold; transition: 0.3s;}
+        .btn:hover { background: #1976D2; transform: scale(1.05); }
+        #radar-chart { width: 100%; height: 400px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #666; }
+        
+        .tag-algo { background: #e8f5e9; color: #2e7d32; padding: 5px 10px; border-radius: 4px; font-size: 0.9em; border: 1px solid #c8e6c9;}
+    </style>
+</head>
+<body>
+    <!-- 这里是 Vue 的挂载点 -->
+    <div id="app">
+        <h1>📊 个性化学习分析报告</h1>
+        <p style="text-align:center">
+            <a href="/">← 返回首页</a> &nbsp;|&nbsp; 
+            <a href="/export_data" style="color: #FF9800;">📥 导出数据用于论文分析</a>
+        </p>
+
+        <!-- 1. 学习者模型可视化 -->
+        <div class="card">
+            <h2>🧠 你的技能能力模型 (Learner Model)</h2>
+            <div id="radar-chart"></div>
+        </div>
+
+        <!-- 2. 智能推荐引擎 -->
+        <div class="card" style="text-align: center; border-left: 5px solid #2196F3;">
+            <h2>💡 智能推荐引擎</h2>
+            <p>当前运行算法：<span class="tag-algo">[[ algoType ]]</span></p>
+            
+            <div style="font-size: 1.2em; margin: 20px 0; color: #444;">
+                [[ recommendation ]]
+            </div>
+            
+            <a :href="'/problem/' + recommendId" class="btn">🚀 立即挑战 (ID: [[ recommendId ]])</a>
+        </div>
+
+        <!-- 3. 历史记录 (Vue 渲染) -->
+        <div class="card">
+            <h2>📜 历史做题记录 (Vue.js Rendering)</h2>
+            <table>
+                <tr>
+                    <th>时间</th>
+                    <th>题目ID</th>
+                    <th>状态</th>
+                </tr>
+                <tr v-for="log in logs">
+                    <td>[[ log[5] ]]</td>
+                    <td>题目 #[[ log[2] ]]</td>
+                    <td :style="{color: log[4] === 'Accepted' ? 'green' : 'red', fontWeight: 'bold'}">
+                        [[ log[4] ]]
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 1. 准备数据 (从后端 Flask 传过来的)
+        // 注意：这里使用 Jinja2 渲染出 JSON 数据供 Vue 使用
+        const skillsData = {{ skills | tojson }};
+        const logsData = {{ logs | tojson }};
+        const recText = "{{ recommendation }}";
+        const recId = {{ recommend_id }};
+        const algoName = "{{ algo_type }}";
+
+        // 2. 初始化 Vue 实例
+        new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'], // 修改 Vue 分隔符，防止和 Flask 冲突
+            data: {
+                logs: logsData,
+                recommendation: recText,
+                recommendId: recId,
+                algoType: algoName
+            }
+        });
+
+        // 3. 初始化 ECharts 雷达图
+        var chartDom = document.getElementById('radar-chart');
+        var myChart = echarts.init(chartDom);
+        var indicators = [];
+        var dataValues = [];
+        for (var key in skillsData) {
+            indicators.push({ name: key, max: 100 });
+            dataValues.push(skillsData[key]);
+        }
+        var option = {
+            tooltip: {},
+            radar: { indicator: indicators },
+            series: [{
+                name: '能力值',
+                type: 'radar',
+                data: [{
+                    value: dataValues,
+                    name: '当前能力',
+                    areaStyle: { color: 'rgba(33, 150, 243, 0.5)' },
+                    itemStyle: { color: '#2196F3' }
+                }]
+            }]
+        };
+        myChart.setOption(option);
+    </script>
+</body>
+</html>
