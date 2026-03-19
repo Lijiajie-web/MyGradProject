@@ -9,6 +9,9 @@ This project is a Flask-based teaching support platform designed for programming
 ---
 ## System Interface Preview / 系统界面展示
 
+The following UI descriptions are updated according to the latest real screenshots provided during the thesis-preparation workflow. They emphasize the recommendation-evidence panel, recommendation-feedback interaction, AST result feedback, and the dashboard’s recommendation-tracking view.  
+以下界面说明已根据最近一次论文整理过程中提供的真实运行截图更新，重点突出推荐依据面板、推荐反馈交互、AST 评测结果反馈以及学习画像页中的推荐追踪视图。
+
 ### Home Page / 首页
 The home page provides the main entrance to the system, including problem browsing, chapter-based filtering, difficulty-based filtering, and random quiz generation.  
 首页提供系统的主要入口，包括题目浏览、按章节筛选、按难度筛选以及随机组卷等功能。
@@ -28,16 +31,54 @@ The registration page allows new users to create accounts and enter the learning
 ![Registration Page](assets/register.png)
 
 ### Problem-Solving Page / 做题页
-The problem-solving page includes problem description, example input/output, code editor, submission entry, recommendation-source display, recommendation-basis hints, and submission feedback such as error type and learning duration. It serves as the core interaction interface for learning, submission, and recommendation verification.  
-做题页包含题目描述、输入输出示例、代码编辑区、提交入口，以及推荐来源展示、推荐依据提示、错误类型和学习时长反馈等信息，是系统完成学习、提交与推荐验证的核心交互界面。
+The problem-solving page is now one of the most thesis-relevant interfaces in the project. In the latest screenshots, it simultaneously shows the problem statement, example I/O, code editor, recommendation source, weak knowledge point, generated rationale, diagnostic summary, current recommendation-accuracy score, and the student-feedback panel used to judge whether the recommendation is actually appropriate. After submission, the same page also displays AST-based analysis, error type, runtime, memory estimate, learning duration, and case-by-case simulated evaluation results.  
+做题页是当前项目中最适合用于论文展示的核心界面之一。根据最新截图，该页面同时展示题目描述、输入输出示例、代码编辑区、推荐来源、薄弱知识点、生成依据、诊断摘要、当前推荐准确度，以及用于判断“这次推荐准不准”的学生反馈区。提交代码后，同一页面还会展示基于 AST 的分析结果、错误类型、运行时间、内存估计、学习时长和模拟测试用例结果。
+
+**Observed screenshot highlights / 截图中可直接看到的内容：**
+- recommended problem banner with recommendation source and time；
+- 题目来自系统推荐的提示卡片；
+- feedback buttons for “匹配度 / 帮助度” plus a free-text note area；
+- 用于填写“匹配度 / 帮助度”的按钮组和补充说明输入框；
+- post-submission AST report and simulated judging result panel；
+- 提交后的 AST 静态分析报告与评测结果区。
 
 ![Problem-Solving Page](assets/solve.png)
 
 ### Learner Dashboard / 学习画像页
-The learner dashboard visualizes learning records, learner profile, recommendation rationale, pre/post recommendation metrics, and recommendation-effect tracking results.  
-学习画像页用于展示学习记录、能力画像、推荐依据、推荐前后效果指标以及推荐效果追踪结果。
+The learner dashboard is no longer just a radar-chart page. Based on the latest screenshots, it contains a learning overview card, a skill radar chart, the current recommendation card, recommendation rationale and weak-skill mapping, a recommendation-accuracy summary section, a recommendation-effect tracking table, and an enriched learning-log table with recommendation-loop fields. This makes the dashboard directly usable for thesis screenshots and later data interpretation.  
+学习画像页已经不再只是简单的能力雷达图页面。结合最新截图可以看到，该页面包含学习概览卡片、技能雷达图、当前推荐卡片、推荐依据与薄弱项映射、推荐准确度综合判断区、推荐效果追踪表，以及包含推荐闭环字段的学习日志表，因此非常适合作为论文中的系统截图与分析素材。
+
+**Observed screenshot highlights / 截图中可直接看到的内容：**
+- recommendation summary cards such as total recommendations, validated recommendations, and average recommendation accuracy；
+- “累计推荐次数 / 已验证推荐次数 / 平均推荐准确度”等概览卡片；
+- evidence-to-weakness mapping table for each knowledge point；
+- 各知识点的推荐依据与薄弱项映射表；
+- recommendation tracking records with confidence scores, pre/post metrics, and student feedback placeholders；
+- 带有依据置信度、推荐前后变化、学生反馈占位信息的追踪记录表；
+- learning-log table prepared for thesis-oriented export and case analysis。
+- 面向论文数据导出与案例分析的学习日志表。
 
 ![Learner Dashboard](assets/dashboard.png)
+
+### Screenshot Scenarios Used in the README / 本次 README 采用的截图场景
+
+To better align the documentation with the actual interface shown in your screenshots, this README now treats the visual presentation as five concrete usage scenarios instead of only two generic page types:  
+为了让文档更贴近你提供的实际页面截图，README 现在把展示内容按 5 个具体使用场景来理解，而不只是笼统地写成“做题页”和“画像页”两类页面：
+
+1. **Recommended problem page before submission / 推荐题做题页（提交前）**  
+   Shows recommendation source, weak knowledge point, rationale, diagnostic summary, and current recommendation-accuracy state.
+
+2. **Recommended problem page after submission / 推荐题做题页（提交后）**  
+   Shows AST analysis, pass rate, runtime, memory estimate, learning duration, and case results after code submission.
+
+3. **Dashboard overview / 学习画像总览**  
+   Shows learning overview, skill radar chart, current recommendation card, and recommendation-accuracy summary cards.
+
+4. **Dashboard evidence mapping / 推荐依据与薄弱项映射**  
+   Shows knowledge-point attempts, accuracy, average time, historical difficulty, and high-frequency errors.
+
+5. **Dashboard tracking view / 推荐效果与准确度追踪视图**  
+   Shows recommendation history, confidence scores, pre/post metrics, student feedback placeholders, and enriched learning logs.
 
 
 ## Project Highlights / 项目亮点
