@@ -32,12 +32,18 @@ SKILL_MAP = {
     '第七章': '算法进阶',
 }
 SKILL_KEYS = list(dict.fromkeys(SKILL_MAP.values()))
+FEEDBACK_SCORE_MAP = {'匹配': 100, '一般': 60, '不匹配': 20}
+HELPFUL_SCORE_MAP = {'有帮助': 100, '一般': 60, '没帮助': 20}
 
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def clamp(value, low, high):
+    return max(low, min(high, value))
 
 
 def ensure_columns(cursor, table_name, columns):
@@ -113,6 +119,24 @@ def init_db():
             'completion_state': "completion_state TEXT DEFAULT '未关联推荐'",
             'effect_change': 'effect_change REAL DEFAULT 0',
             'same_type_followup_accuracy': 'same_type_followup_accuracy REAL DEFAULT 0',
+        },
+    )
+
+    ensure_columns(
+        c,
+        'recommendation_events',
+        {
+            'matched_skill_score': 'matched_skill_score REAL DEFAULT 0',
+            'difficulty_fit_score': 'difficulty_fit_score REAL DEFAULT 0',
+            'evidence_confidence': 'evidence_confidence REAL DEFAULT 0',
+            'accuracy_score': 'accuracy_score REAL DEFAULT 0',
+            'accuracy_label': "accuracy_label TEXT DEFAULT '待验证'",
+            'student_feedback': 'student_feedback TEXT',
+            'student_feedback_note': 'student_feedback_note TEXT',
+            'student_feedback_at': 'student_feedback_at DATETIME',
+            'perceived_helpfulness': 'perceived_helpfulness TEXT',
+            'manual_helpful': 'manual_helpful INTEGER DEFAULT 0',
+            'diagnostic_summary': 'diagnostic_summary TEXT',
         },
     )
 
@@ -232,7 +256,6 @@ def build_user_metrics(conn, user_id):
             'total_time': 0,
             'difficulties': [],
             'error_types': Counter(),
-            'followup_logs': [],
         }
         for key in SKILL_KEYS
     }
@@ -246,7 +269,6 @@ def build_user_metrics(conn, user_id):
                 'total_time': 0,
                 'difficulties': [],
                 'error_types': Counter(),
-                'followup_logs': [],
             }
         item = skill_stats[skill]
         item['attempts'] += 1
@@ -255,7 +277,6 @@ def build_user_metrics(conn, user_id):
         if log['problem_difficulty']:
             item['difficulties'].append(log['problem_difficulty'])
         item['error_types'][log['error_type'] or '未分类'] += 1
-        item['followup_logs'].append(log)
 
     skills = {}
     basis_rows = []
@@ -266,7 +287,7 @@ def build_user_metrics(conn, user_id):
         avg_diff = round(sum(stat['difficulties']) / len(stat['difficulties']), 1) if stat['difficulties'] else 1.0
         penalty = min(40, avg_time / 18) if avg_time else 0
         base_score = 55 + accuracy * 0.45 - penalty + attempts * 1.5
-        skills[skill] = max(10, min(100, round(base_score)))
+        skills[skill] = clamp(round(base_score), 10, 100)
         top_errors = ', '.join(f'{name}×{count}' for name, count in stat['error_types'].most_common(2)) or '暂无'
         basis_rows.append(
             {
@@ -288,11 +309,12 @@ def build_user_metrics(conn, user_id):
 def find_best_problem_for_recommendation(conn, weak_skill, preferred_difficulty, user_id):
     c = conn.cursor()
     attempts = {row['problem_id'] for row in fetch_logs_for_user(conn, user_id)}
+    chapter_prefix = next((k for k, v in SKILL_MAP.items() if v == weak_skill), weak_skill)
     c.execute(
         '''SELECT * FROM problems
            WHERE tag LIKE ?
            ORDER BY ABS(difficulty - ?) ASC, difficulty ASC, id ASC''',
-        (f"{next((k for k, v in SKILL_MAP.items() if v == weak_skill), weak_skill)}%", preferred_difficulty),
+        (f"{chapter_prefix}%", preferred_difficulty),
     )
     candidates = c.fetchall()
     for row in candidates:
@@ -304,7 +326,8 @@ def find_best_problem_for_recommendation(conn, weak_skill, preferred_difficulty,
 def derive_rule_adjustment(conn, user_id, weak_skill, base_difficulty):
     c = conn.cursor()
     c.execute(
-        '''SELECT effect_score, helpful, matched_difficulty FROM recommendation_events
+        '''SELECT effect_score, helpful, matched_difficulty, accuracy_score
+           FROM recommendation_events
            WHERE user_id=? AND weak_skill=? AND effect_score IS NOT NULL
            ORDER BY recommendation_time DESC LIMIT 3''',
         (user_id, weak_skill),
@@ -315,11 +338,67 @@ def derive_rule_adjustment(conn, user_id, weak_skill, base_difficulty):
 
     helpful_ratio = sum(1 for row in recent if row['helpful']) / len(recent)
     avg_effect = sum((row['effect_score'] or 0) for row in recent) / len(recent)
-    if helpful_ratio < 0.5 or avg_effect < 5:
+    avg_accuracy = sum((row['accuracy_score'] or 0) for row in recent) / len(recent)
+    if helpful_ratio < 0.5 or avg_effect < 5 or avg_accuracy < 55:
         adjusted = max(1, base_difficulty - 1)
-        return adjusted, '根据前序推荐效果一般，自动下调一档难度并继续针对同类错误做巩固练习。'
-    adjusted = min(4, base_difficulty + 1 if avg_effect > 15 else base_difficulty)
-    return adjusted, '根据前序推荐效果较好，适度维持或提高难度，形成循序渐进的反馈闭环。'
+        return adjusted, '根据前序推荐效果与命中度偏弱，系统自动下调一档难度并继续针对同类错误做巩固练习。'
+    adjusted = min(4, base_difficulty + 1 if avg_effect > 15 and avg_accuracy > 75 else base_difficulty)
+    return adjusted, '根据前序推荐命中度较好，系统维持或适度提升难度，以继续验证推荐是否准确有效。'
+
+
+def compute_recommendation_scores(weak_row, problem):
+    knowledge_point = extract_knowledge_point(problem['tag'])
+    matched_skill_score = 100 if knowledge_point == weak_row['knowledge_point'] else 60
+    difficulty_gap = abs((weak_row['avg_difficulty'] or 1) - problem['difficulty'])
+    difficulty_fit_score = round(clamp(100 - difficulty_gap * 25, 40, 100), 1)
+    evidence_confidence = round(
+        clamp((100 - weak_row['accuracy']) * 0.45 + min(weak_row['attempts'], 8) * 6 + min(weak_row['avg_time'], 120) * 0.2, 35, 100),
+        1,
+    )
+    diagnostic_summary = (
+        f"薄弱项命中度 {matched_skill_score} 分，难度匹配度 {difficulty_fit_score} 分，"
+        f"依据可信度 {evidence_confidence} 分。"
+    )
+    return matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary
+
+
+def calculate_recommendation_accuracy(rec):
+    base = (rec['matched_skill_score'] or 0) * 0.3 + (rec['difficulty_fit_score'] or 0) * 0.2 + (rec['evidence_confidence'] or 0) * 0.2
+    effect_component = clamp((rec['effect_score'] or 0) + 55, 20, 100) if rec['effect_score'] is not None else 45
+    feedback_component = FEEDBACK_SCORE_MAP.get(rec['student_feedback'], 60)
+    helpful_component = HELPFUL_SCORE_MAP.get(rec['perceived_helpfulness'], 60)
+
+    if rec['status'] in {'pending', 'completed'} and not rec['student_feedback'] and rec['effect_score'] is None:
+        accuracy_score = round(base * 0.85, 1)
+        return accuracy_score, '待验证'
+
+    accuracy_score = round(base + effect_component * 0.2 + feedback_component * 0.06 + helpful_component * 0.04, 1)
+    accuracy_score = clamp(accuracy_score, 0, 100)
+    if accuracy_score >= 80:
+        label = '推荐较准确'
+    elif accuracy_score >= 60:
+        label = '基本准确'
+    elif accuracy_score >= 40:
+        label = '部分命中'
+    else:
+        label = '有待修正'
+    return accuracy_score, label
+
+
+def refresh_recommendation_accuracy(conn, recommendation_id):
+    c = conn.cursor()
+    c.execute('SELECT * FROM recommendation_events WHERE id=?', (recommendation_id,))
+    rec = c.fetchone()
+    if not rec:
+        return None
+    accuracy_score, accuracy_label = calculate_recommendation_accuracy(rec)
+    c.execute(
+        'UPDATE recommendation_events SET accuracy_score=?, accuracy_label=? WHERE id=?',
+        (accuracy_score, accuracy_label, recommendation_id),
+    )
+    conn.commit()
+    c.execute('SELECT * FROM recommendation_events WHERE id=?', (recommendation_id,))
+    return c.fetchone()
 
 
 def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, overall_avg_time):
@@ -332,7 +411,7 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
     )
     existing = c.fetchone()
     if existing:
-        return existing
+        return refresh_recommendation_accuracy(conn, existing['id'])
 
     weak_row = min(
         basis_rows,
@@ -353,6 +432,7 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
         c.execute('SELECT * FROM problems ORDER BY difficulty ASC, id ASC LIMIT 1')
         problem = c.fetchone()
 
+    matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary = compute_recommendation_scores(weak_row, problem)
     recommendation_reason = (
         f"薄弱知识点为【{weak_row['knowledge_point']}】，历史正确率 {weak_row['accuracy']}%，"
         f"平均完成时间 {weak_row['avg_time']} 秒，历史高频错误为 {weak_row['top_errors']}。"
@@ -367,8 +447,9 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
            (user_id, problem_id, knowledge_point, weak_skill, source, recommendation_reason,
             reason_mapping, matched_difficulty, historical_accuracy, historical_avg_time,
             historical_error_types, before_accuracy, before_avg_time, before_error_types,
+            matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary,
             rule_adjustment, status, recommendation_time)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
         (
             user_id,
             problem['id'],
@@ -384,13 +465,16 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
             weak_row['accuracy'],
             weak_row['avg_time'],
             weak_row['top_errors'],
+            matched_skill_score,
+            difficulty_fit_score,
+            evidence_confidence,
+            diagnostic_summary,
             rule_adjustment,
             now,
         ),
     )
     conn.commit()
-    c.execute('SELECT * FROM recommendation_events WHERE id=?', (c.lastrowid,))
-    return c.fetchone()
+    return refresh_recommendation_accuracy(conn, c.lastrowid)
 
 
 def evaluate_recommendation_effect(conn, recommendation_id):
@@ -400,17 +484,18 @@ def evaluate_recommendation_effect(conn, recommendation_id):
     if not rec:
         return None
 
+    chapter_prefix = next((k for k, v in SKILL_MAP.items() if v == rec['knowledge_point']), rec['knowledge_point'])
     c.execute(
         '''SELECT l.*, p.tag AS problem_tag
            FROM learning_logs l
            LEFT JOIN problems p ON p.id = l.problem_id
            WHERE l.user_id=? AND p.tag LIKE ? AND l.timestamp >= ?
            ORDER BY l.timestamp ASC''',
-        (rec['user_id'], f"{next((k for k, v in SKILL_MAP.items() if v == rec['knowledge_point']), rec['knowledge_point'])}%", rec['recommendation_time']),
+        (rec['user_id'], f"{chapter_prefix}%", rec['recommendation_time']),
     )
     followup_logs = c.fetchall()
     if not followup_logs:
-        return None
+        return refresh_recommendation_accuracy(conn, recommendation_id)
 
     attempts = len(followup_logs)
     accepted = sum(1 for row in followup_logs if row['status'] == 'Accepted')
@@ -450,8 +535,20 @@ def evaluate_recommendation_effect(conn, recommendation_id):
         (effect_score, after_accuracy, '已完成推荐题' if accepted else '已提交待提升', recommendation_id),
     )
     conn.commit()
-    c.execute('SELECT * FROM recommendation_events WHERE id=?', (recommendation_id,))
-    return c.fetchone()
+    return refresh_recommendation_accuracy(conn, recommendation_id)
+
+
+def build_recommendation_summary(recommendation_history):
+    total = len(recommendation_history)
+    accurate = sum(1 for item in recommendation_history if (item['accuracy_score'] or 0) >= 60)
+    validated = sum(1 for item in recommendation_history if item['accuracy_label'] != '待验证')
+    average_score = round(sum((item['accuracy_score'] or 0) for item in recommendation_history) / total, 1) if total else 0.0
+    return {
+        'total': total,
+        'validated': validated,
+        'accurate': accurate,
+        'average_score': average_score,
+    }
 
 
 def row_to_dict(row):
@@ -564,13 +661,63 @@ def problem_page(pid):
     if current_user:
         c.execute(
             '''SELECT * FROM recommendation_events
-               WHERE user_id=? AND problem_id=? AND status='pending'
+               WHERE user_id=? AND problem_id=? AND status IN ('pending', 'completed', 'evaluated')
                ORDER BY recommendation_time DESC LIMIT 1''',
             (current_user, pid),
         )
         recommendation = c.fetchone()
     conn.close()
     return render_template('solve.html', problem=problem, recommendation=recommendation)
+
+
+@app.route('/api/recommendation_feedback', methods=['POST'])
+def recommendation_feedback():
+    current_user = session.get('user_id')
+    if not current_user:
+        return jsonify({'ok': False, 'msg': '请先登录'})
+
+    data = request.json or {}
+    recommendation_id = data.get('recommendation_id')
+    feedback = data.get('feedback')
+    helpfulness = data.get('helpfulness')
+    note = (data.get('note') or '').strip()
+    if not recommendation_id:
+        return jsonify({'ok': False, 'msg': '缺少推荐事件编号'})
+
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM recommendation_events WHERE id=? AND user_id=?', (recommendation_id, current_user))
+    rec = c.fetchone()
+    if not rec:
+        conn.close()
+        return jsonify({'ok': False, 'msg': '未找到对应推荐记录'})
+
+    manual_helpful = 1 if helpfulness == '有帮助' else 0
+    c.execute(
+        '''UPDATE recommendation_events
+           SET student_feedback=?, student_feedback_note=?, perceived_helpfulness=?,
+               manual_helpful=?, student_feedback_at=?
+           WHERE id=?''',
+        (
+            feedback,
+            note,
+            helpfulness,
+            manual_helpful,
+            datetime.datetime.now().isoformat(sep=' ', timespec='seconds'),
+            recommendation_id,
+        ),
+    )
+    conn.commit()
+    updated = refresh_recommendation_accuracy(conn, recommendation_id)
+    conn.close()
+    return jsonify(
+        {
+            'ok': True,
+            'msg': '反馈已记录，系统会据此判断本次推荐是否准确。',
+            'accuracy_score': updated['accuracy_score'] if updated else 0,
+            'accuracy_label': updated['accuracy_label'] if updated else '待验证',
+        }
+    )
 
 
 @app.route('/api/submit', methods=['POST'])
@@ -658,7 +805,7 @@ def submit_code():
         if evaluated_rec:
             effect_text = (
                 f"推荐后同类题正确率 {evaluated_rec['after_accuracy']}%，平均用时 {evaluated_rec['after_avg_time']} 秒，"
-                f"效果评分 {evaluated_rec['effect_score']}。"
+                f"当前推荐准确度 {evaluated_rec['accuracy_score']} 分（{evaluated_rec['accuracy_label']}）。"
             )
         return jsonify(
             {
@@ -696,7 +843,8 @@ def dashboard():
            ORDER BY recommendation_time DESC LIMIT 8''',
         (current_user,),
     )
-    recommendation_history = c.fetchall()
+    recommendation_history = [dict(row) for row in c.fetchall()]
+    recommendation_summary = build_recommendation_summary(recommendation_history)
     conn.close()
 
     recommendation_text = '暂无推荐'
@@ -716,7 +864,8 @@ def dashboard():
         algo_type=algo_type,
         basis_rows=basis_rows,
         recommendation_event=row_to_dict(recommendation),
-        recommendation_history=[row_to_dict(row) for row in recommendation_history],
+        recommendation_history=recommendation_history,
+        recommendation_summary=recommendation_summary,
         overall_accuracy=overall_accuracy,
         overall_avg_time=overall_avg_time,
     )

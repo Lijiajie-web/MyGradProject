@@ -24,11 +24,14 @@
         .pill.completed { background: #e3f2fd; color: #1565c0; }
         .pill.evaluated { background: #e8f5e9; color: #2e7d32; }
         .good { color: #2e7d32; font-weight: bold; }
+        .mid { color: #ef6c00; font-weight: bold; }
         .bad { color: #c62828; font-weight: bold; }
         .small { color: #666; font-size: 0.92em; line-height: 1.6; }
-        .section-title { margin-bottom: 6px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 12px; }
+        .summary-box { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 14px; }
+        .summary-box strong { display: block; font-size: 1.3em; margin-bottom: 4px; }
         @media (max-width: 900px) {
-            .grid-two, .metric-strip { grid-template-columns: 1fr; }
+            .grid-two, .metric-strip, .summary-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -41,7 +44,7 @@
         </p>
 
         <div class="card">
-            <h2 class="section-title">📌 学习概览</h2>
+            <h2>📌 学习概览</h2>
             <div class="metric-strip">
                 <div class="metric-box">
                     <strong>[[ overallAccuracy ]]%</strong>
@@ -72,6 +75,7 @@
                 </div>
                 <div v-if="recommendationEvent" class="small">
                     <div><strong>生成依据：</strong>[[ recommendationEvent.reason_mapping ]]</div>
+                    <div><strong>诊断摘要：</strong>[[ recommendationEvent.diagnostic_summary ]]</div>
                     <div><strong>推荐时间：</strong>[[ recommendationEvent.recommendation_time ]]</div>
                     <div><strong>推荐来源：</strong>[[ recommendationEvent.source ]]</div>
                     <div><strong>规则调整：</strong>[[ recommendationEvent.rule_adjustment ]]</div>
@@ -81,6 +85,27 @@
                 </div>
                 <a :href="'/problem/' + recommendId" class="btn">🚀 立即挑战 (ID: [[ recommendId ]])</a>
             </div>
+        </div>
+
+        <div class="card">
+            <h2>🎯 推荐是否准确？综合判断</h2>
+            <div class="summary-grid">
+                <div class="summary-box">
+                    <strong>[[ recommendationSummary.total ]]</strong>
+                    <span>累计推荐次数</span>
+                </div>
+                <div class="summary-box">
+                    <strong>[[ recommendationSummary.validated ]]</strong>
+                    <span>已验证推荐次数</span>
+                </div>
+                <div class="summary-box">
+                    <strong>[[ recommendationSummary.average_score ]] 分</strong>
+                    <span>平均推荐准确度</span>
+                </div>
+            </div>
+            <p class="small" style="margin-top:12px;">
+                系统会综合“薄弱项命中度、难度匹配度、依据可信度、推荐后效果变化、学生主观反馈”来判断本次推荐是否准确。
+            </p>
         </div>
 
         <div class="card">
@@ -106,15 +131,15 @@
         </div>
 
         <div class="card">
-            <h2>🔁 推荐效果追踪</h2>
+            <h2>🔁 推荐效果与准确度追踪</h2>
             <table>
                 <tr>
                     <th>推荐时间</th>
                     <th>知识点 / 题目</th>
-                    <th>推荐前</th>
-                    <th>推荐后</th>
-                    <th>后续同类题表现</th>
-                    <th>效果评估</th>
+                    <th>推荐依据置信度</th>
+                    <th>推荐前后变化</th>
+                    <th>学生反馈</th>
+                    <th>综合判断</th>
                 </tr>
                 <tr v-for="item in recommendationHistory">
                     <td>[[ item.recommendation_time ]]</td>
@@ -123,19 +148,22 @@
                         <div class="small">来源：[[ item.source ]]</div>
                     </td>
                     <td>
-                        正确率 [[ item.before_accuracy || 0 ]]%<br>
-                        用时 [[ item.before_avg_time || 0 ]] 秒<br>
-                        错误 [[ item.before_error_types || '暂无' ]]
+                        薄弱项命中 [[ item.matched_skill_score || 0 ]] 分<br>
+                        难度匹配 [[ item.difficulty_fit_score || 0 ]] 分<br>
+                        依据可信度 [[ item.evidence_confidence || 0 ]] 分
                     </td>
                     <td>
-                        正确率 [[ item.after_accuracy || 0 ]]%<br>
-                        用时 [[ item.after_avg_time || 0 ]] 秒<br>
-                        错误 [[ item.after_error_types || '待评估' ]]
+                        前：[[ item.before_accuracy || 0 ]]% / [[ item.before_avg_time || 0 ]] 秒<br>
+                        后：[[ item.after_accuracy || 0 ]]% / [[ item.after_avg_time || 0 ]] 秒<br>
+                        效果分 [[ item.effect_score || 0 ]]
                     </td>
-                    <td>[[ item.followup_accuracy || 0 ]]%</td>
                     <td>
-                        <span :class="(item.effect_score || 0) >= 0 ? 'good' : 'bad'">[[ item.effect_score || 0 ]]</span><br>
-                        <span class="small">[[ item.helpful ? '已证明有帮助' : '仍需继续观察' ]]</span>
+                        匹配度：[[ item.student_feedback || '待填写' ]]<br>
+                        帮助度：[[ item.perceived_helpfulness || '待填写' ]]
+                    </td>
+                    <td>
+                        <span :class="accuracyClass(item.accuracy_score || 0)">[[ item.accuracy_score || 0 ]] 分</span><br>
+                        <span class="small">[[ item.accuracy_label || '待验证' ]]</span>
                     </td>
                 </tr>
             </table>
@@ -177,6 +205,7 @@
         const basisRows = {{ basis_rows | tojson }};
         const recommendationEvent = {{ recommendation_event | tojson }};
         const recommendationHistory = {{ recommendation_history | tojson }};
+        const recommendationSummary = {{ recommendation_summary | tojson }};
         const overallAccuracy = {{ overall_accuracy | tojson }};
         const overallAvgTime = {{ overall_avg_time | tojson }};
 
@@ -191,8 +220,16 @@
                 basisRows: basisRows,
                 recommendationEvent: recommendationEvent,
                 recommendationHistory: recommendationHistory,
+                recommendationSummary: recommendationSummary,
                 overallAccuracy: overallAccuracy,
                 overallAvgTime: overallAvgTime
+            },
+            methods: {
+                accuracyClass(score) {
+                    if (score >= 80) return 'good';
+                    if (score >= 60) return 'mid';
+                    return 'bad';
+                }
             }
         });
 

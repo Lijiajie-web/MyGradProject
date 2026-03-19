@@ -23,6 +23,12 @@
         .notice { margin-top: 20px; padding: 14px; border-radius: 8px; line-height: 1.7; }
         .notice.blue { background: #eef6ff; border: 1px solid #cfe3ff; color: #0f4fa8; }
         .notice.green { background: #edf7ed; border: 1px solid #cae8ca; color: #2e7d32; }
+        .feedback-box { margin-top: 18px; padding: 14px; border-radius: 8px; border: 1px solid #f0d9b5; background: #fff8e8; }
+        .feedback-row { margin: 10px 0; }
+        .feedback-row button { margin-right: 8px; margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; }
+        .feedback-row button.active { background: #2196F3; color: white; border-color: #2196F3; }
+        textarea.note { width: 100%; min-height: 60px; border-radius: 8px; border: 1px solid #ddd; padding: 10px; resize: vertical; }
+        .btn-feedback { margin-top: 10px; background: #ff9800; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; }
         #answer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
         #answer-content { background: white; width: 60%; margin: 100px auto; padding: 20px; border-radius: 8px; position: relative; }
     </style>
@@ -57,7 +63,28 @@
                 推荐来源：{{ recommendation['source'] }}<br>
                 推荐时间：{{ recommendation['recommendation_time'] }}<br>
                 薄弱知识点：{{ recommendation['weak_skill'] }}<br>
-                生成依据：{{ recommendation['reason_mapping'] }}
+                生成依据：{{ recommendation['reason_mapping'] }}<br>
+                诊断摘要：{{ recommendation['diagnostic_summary'] }}<br>
+                当前推荐准确度：{{ recommendation['accuracy_score'] }} 分（{{ recommendation['accuracy_label'] }}）
+            </div>
+
+            <div class="feedback-box">
+                <strong>📝 帮系统判断这次推荐准不准</strong>
+                <div class="feedback-row">
+                    <div style="margin-bottom:6px;">1. 这道题和你的薄弱项匹配吗？</div>
+                    <button type="button" data-group="match" data-value="匹配" onclick="selectFeedback(this)">很匹配</button>
+                    <button type="button" data-group="match" data-value="一般" onclick="selectFeedback(this)">一般</button>
+                    <button type="button" data-group="match" data-value="不匹配" onclick="selectFeedback(this)">不匹配</button>
+                </div>
+                <div class="feedback-row">
+                    <div style="margin-bottom:6px;">2. 这次推荐对你有帮助吗？</div>
+                    <button type="button" data-group="help" data-value="有帮助" onclick="selectFeedback(this)">有帮助</button>
+                    <button type="button" data-group="help" data-value="一般" onclick="selectFeedback(this)">一般</button>
+                    <button type="button" data-group="help" data-value="没帮助" onclick="selectFeedback(this)">没帮助</button>
+                </div>
+                <textarea id="feedback-note" class="note" placeholder="可补充原因：例如难度偏高、知识点不够聚焦、和当前错误类型不匹配等"></textarea>
+                <button class="btn-feedback" onclick="submitRecommendationFeedback()">提交推荐反馈</button>
+                <div id="feedback-msg" style="margin-top:8px; font-size:0.95em;"></div>
             </div>
             {% endif %}
 
@@ -99,10 +126,43 @@ def solution():
             mode: 'python', theme: 'dracula', lineNumbers: true, indentUnit: 4
         });
         const startTime = Date.now();
+        const recommendationId = {{ recommendation['id'] if recommendation else 'null' }};
+        const feedbackState = { match: '', help: '' };
 
         function toggleAnswer() {
             const modal = document.getElementById('answer-modal');
             modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function selectFeedback(button) {
+            const group = button.dataset.group;
+            feedbackState[group] = button.dataset.value;
+            document.querySelectorAll(`button[data-group="${group}"]`).forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+        }
+
+        function submitRecommendationFeedback() {
+            if (!recommendationId) return;
+            if (!feedbackState.match || !feedbackState.help) {
+                document.getElementById('feedback-msg').innerText = '请先选择匹配度和帮助度。';
+                return;
+            }
+            fetch('/api/recommendation_feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    recommendation_id: recommendationId,
+                    feedback: feedbackState.match,
+                    helpfulness: feedbackState.help,
+                    note: document.getElementById('feedback-note').value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('feedback-msg').innerText = data.ok
+                    ? `${data.msg} 当前准确度：${data.accuracy_score} 分（${data.accuracy_label}）`
+                    : data.msg;
+            });
         }
 
         function submitCode() {
@@ -129,7 +189,7 @@ def solution():
             .then(data => {
                 analysisDiv.style.display = 'block';
                 document.getElementById('ast-msg').innerText = `${data.ast_analysis}，本次错误类型判定为：${data.error_type}`;
-                document.getElementById('effect-msg').innerText = data.effect_text || '本次提交将写入学习日志，用于后续追踪推荐前后正确率、完成时间与同类题表现。';
+                document.getElementById('effect-msg').innerText = data.effect_text || '本次提交将写入学习日志，用于后续判断这次推荐是否真的命中你的薄弱项。';
 
                 let casesHtml = '<div style="margin-top:10px; border-top:1px solid #ccc;">';
                 data.test_cases.forEach((item, index) => {
