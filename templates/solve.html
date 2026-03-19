@@ -6,26 +6,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
-    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f0f2f5; height: 90vh; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
-        .container { display: flex; gap: 20px; height: 100%; }
-        
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f0f2f5; min-height: 90vh; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .container { display: flex; gap: 20px; min-height: 82vh; }
         .problem-desc { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-y: auto; }
-        .editor-area { flex: 1.5; display: flex; flex-direction: column; }
+        .editor-area { flex: 1.4; display: flex; flex-direction: column; }
         .CodeMirror { flex: 1; border-radius: 8px; font-size: 16px; font-family: 'Consolas', monospace; }
-        
         .action-bar { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
         .btn-submit { background: #2196F3; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
         .btn-answer { background: #607d8b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        
         .tag { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
-        
         .case-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9em; }
         .case-pass { color: green; font-weight: bold; }
         .case-fail { color: red; font-weight: bold; }
-        
+        .notice { margin-top: 20px; padding: 14px; border-radius: 8px; line-height: 1.7; }
+        .notice.blue { background: #eef6ff; border: 1px solid #cfe3ff; color: #0f4fa8; }
+        .notice.green { background: #edf7ed; border: 1px solid #cae8ca; color: #2e7d32; }
+        .feedback-box { margin-top: 18px; padding: 14px; border-radius: 8px; border: 1px solid #f0d9b5; background: #fff8e8; }
+        .feedback-row { margin: 10px 0; }
+        .feedback-row button { margin-right: 8px; margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; }
+        .feedback-row button.active { background: #2196F3; color: white; border-color: #2196F3; }
+        textarea.note { width: 100%; min-height: 60px; border-radius: 8px; border: 1px solid #ddd; padding: 10px; resize: vertical; }
+        .btn-feedback { margin-top: 10px; background: #ff9800; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; }
         #answer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
         #answer-content { background: white; width: 60%; margin: 100px auto; padding: 20px; border-radius: 8px; position: relative; }
     </style>
@@ -37,7 +40,6 @@
     </div>
 
     <div class="container">
-        <!-- 左侧：题目详情 -->
         <div class="problem-desc">
             <h1>{{ problem[1] }}</h1>
             <p>
@@ -46,88 +48,154 @@
             </p>
             <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
             <div style="line-height: 1.6; color: #444;">{{ problem[4] }}</div>
-            
-            <br>
-            <h4>📝 输入输出示例 (Examples)：</h4>
+
+            <h4>📝 输入输出示例</h4>
             <div style="background:#1e1e1e; color:#d4d4d4; padding:15px; border-radius:8px; font-family:Consolas, monospace;">
                 <div style="color:#569cd6;">[输入 Input]</div>
-                <!-- 这里是动态读取数据库的地方 -->
                 <div style="margin-bottom:10px; white-space:pre-wrap;">{{ problem[6] }}</div>
                 <div style="color:#ce9178;">[输出 Output]</div>
                 <div style="white-space:pre-wrap;">{{ problem[7] }}</div>
             </div>
-            
-            <div id="analysis-result" style="margin-top:20px; display:none; background:#e8f5e9; padding:10px; border-radius:5px; border:1px solid #c8e6c9;">
+
+            {% if recommendation %}
+            <div class="notice blue">
+                <strong>🎯 当前题目来自系统推荐</strong><br>
+                推荐来源：{{ recommendation['source'] }}<br>
+                推荐时间：{{ recommendation['recommendation_time'] }}<br>
+                薄弱知识点：{{ recommendation['weak_skill'] }}<br>
+                生成依据：{{ recommendation['reason_mapping'] }}<br>
+                诊断摘要：{{ recommendation['diagnostic_summary'] }}<br>
+                当前推荐准确度：{{ recommendation['accuracy_score'] }} 分（{{ recommendation['accuracy_label'] }}）
+            </div>
+
+            <div class="feedback-box">
+                <strong>📝 帮系统判断这次推荐准不准</strong>
+                <div class="feedback-row">
+                    <div style="margin-bottom:6px;">1. 这道题和你的薄弱项匹配吗？</div>
+                    <button type="button" data-group="match" data-value="匹配" onclick="selectFeedback(this)">很匹配</button>
+                    <button type="button" data-group="match" data-value="一般" onclick="selectFeedback(this)">一般</button>
+                    <button type="button" data-group="match" data-value="不匹配" onclick="selectFeedback(this)">不匹配</button>
+                </div>
+                <div class="feedback-row">
+                    <div style="margin-bottom:6px;">2. 这次推荐对你有帮助吗？</div>
+                    <button type="button" data-group="help" data-value="有帮助" onclick="selectFeedback(this)">有帮助</button>
+                    <button type="button" data-group="help" data-value="一般" onclick="selectFeedback(this)">一般</button>
+                    <button type="button" data-group="help" data-value="没帮助" onclick="selectFeedback(this)">没帮助</button>
+                </div>
+                <textarea id="feedback-note" class="note" placeholder="可补充原因：例如难度偏高、知识点不够聚焦、和当前错误类型不匹配等"></textarea>
+                <button class="btn-feedback" onclick="submitRecommendationFeedback()">提交推荐反馈</button>
+                <div id="feedback-msg" style="margin-top:8px; font-size:0.95em;"></div>
+            </div>
+            {% endif %}
+
+            <div id="analysis-result" class="notice green" style="display:none;">
                 <strong>🔍 AST 静态分析报告：</strong>
-                <div id="ast-msg" style="font-size:0.9em; color:#2e7d32;"></div>
+                <div id="ast-msg" style="font-size:0.95em;"></div>
+                <div id="effect-msg" style="font-size:0.95em; margin-top:8px;"></div>
             </div>
         </div>
 
-        <!-- 右侧：代码编辑器 -->
         <div class="editor-area">
-            <!-- 注意：这里我已经把第一题的提示语删掉了 -->
             <textarea id="code-input"># 题目: {{ problem[1] }}
 # 请在下方编写代码:
 
 def solution():
     # 你的逻辑代码
     pass
-
-# print("调试信息")
 </textarea>
-            
+
             <div class="action-bar">
                 <button class="btn-answer" onclick="toggleAnswer()">🔑 参考答案</button>
                 <button onclick="submitCode()" class="btn-submit">🚀 提交并评测</button>
             </div>
-            
+
             <div id="result-area" style="margin-top:15px; padding:15px; border-radius:5px; display:none;"></div>
         </div>
     </div>
 
-    <!-- 弹窗 -->
     <div id="answer-modal">
         <div id="answer-content">
-            <h3>🔑 参考答案 (Standard Answer)</h3>
+            <h3>🔑 参考答案</h3>
             <pre style="background:#f5f5f5; padding:15px; border-radius:5px; overflow:auto;">{{ problem[5] }}</pre>
             <button onclick="toggleAnswer()" style="margin-top:10px; padding:5px 15px;">关闭</button>
         </div>
     </div>
 
     <script>
-        var editor = CodeMirror.fromTextArea(document.getElementById("code-input"), {
-            mode: "python", theme: "dracula", lineNumbers: true, indentUnit: 4
+        const editor = CodeMirror.fromTextArea(document.getElementById('code-input'), {
+            mode: 'python', theme: 'dracula', lineNumbers: true, indentUnit: 4
         });
+        const startTime = Date.now();
+        const recommendationId = {{ recommendation['id'] if recommendation else 'null' }};
+        const feedbackState = { match: '', help: '' };
 
         function toggleAnswer() {
-            var modal = document.getElementById('answer-modal');
+            const modal = document.getElementById('answer-modal');
             modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function selectFeedback(button) {
+            const group = button.dataset.group;
+            feedbackState[group] = button.dataset.value;
+            document.querySelectorAll(`button[data-group="${group}"]`).forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+        }
+
+        function submitRecommendationFeedback() {
+            if (!recommendationId) return;
+            if (!feedbackState.match || !feedbackState.help) {
+                document.getElementById('feedback-msg').innerText = '请先选择匹配度和帮助度。';
+                return;
+            }
+            fetch('/api/recommendation_feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    recommendation_id: recommendationId,
+                    feedback: feedbackState.match,
+                    helpfulness: feedbackState.help,
+                    note: document.getElementById('feedback-note').value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('feedback-msg').innerText = data.ok
+                    ? `${data.msg} 当前准确度：${data.accuracy_score} 分（${data.accuracy_label}）`
+                    : data.msg;
+            });
         }
 
         function submitCode() {
             const code = editor.getValue();
             const resultArea = document.getElementById('result-area');
             const analysisDiv = document.getElementById('analysis-result');
-            
+            const durationSeconds = Math.max(1, Math.round((Date.now() - startTime) / 1000));
+
             resultArea.style.display = 'block';
-            resultArea.innerHTML = '⏳ 正在进行AST分析与沙箱评测...';
+            resultArea.innerHTML = '⏳ 正在进行 AST 分析与沙箱评测...';
             resultArea.style.background = '#e3f2fd';
+            resultArea.style.color = '#0f4fa8';
 
             fetch('/api/submit', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ pid: {{ problem[0] }}, code: code })
+                body: JSON.stringify({
+                    pid: {{ problem[0] }},
+                    code: code,
+                    duration_seconds: durationSeconds
+                })
             })
             .then(response => response.json())
             .then(data => {
                 analysisDiv.style.display = 'block';
-                document.getElementById('ast-msg').innerText = data.ast_analysis;
+                document.getElementById('ast-msg').innerText = `${data.ast_analysis}，本次错误类型判定为：${data.error_type}`;
+                document.getElementById('effect-msg').innerText = data.effect_text || '本次提交将写入学习日志，用于后续判断这次推荐是否真的命中你的薄弱项。';
 
                 let casesHtml = '<div style="margin-top:10px; border-top:1px solid #ccc;">';
                 data.test_cases.forEach((item, index) => {
                     casesHtml += `
                         <div class="case-item">
-                            <span>用例 ${index+1}: ${item.name}</span>
+                            <span>用例 ${index + 1}: ${item.name}</span>
                             <span class="${item.passed ? 'case-pass' : 'case-fail'}">
                                 ${item.passed ? '✅ 通过' : '❌ 失败'}
                             </span>
@@ -136,15 +204,13 @@ def solution():
                 });
                 casesHtml += '</div>';
 
-                let color = data.status === 'Accepted' ? '#155724' : '#721c24';
-                let bg = data.status === 'Accepted' ? '#d4edda' : '#f8d7da';
-                
-                resultArea.style.background = bg;
-                resultArea.style.color = color;
+                const success = data.status === 'Accepted';
+                resultArea.style.background = success ? '#d4edda' : '#fff1f0';
+                resultArea.style.color = success ? '#155724' : '#b71c1c';
                 resultArea.innerHTML = `
                     <h3 style="margin:0">${data.feedback} (${data.pass_rate}%)</h3>
-                    <div style="font-size:0.9em; margin-top:5px;">
-                        ⏱️ ${data.run_time}ms | 💾 ${data.memory}MB
+                    <div style="font-size:0.95em; margin-top:8px; line-height: 1.7;">
+                        ⏱️ ${data.run_time}ms | 💾 ${data.memory}MB | 🧭 错误类型：${data.error_type} | 📝 学习时长：${durationSeconds} 秒
                     </div>
                     ${casesHtml}
                 `;
