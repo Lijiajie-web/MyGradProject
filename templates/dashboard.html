@@ -27,7 +27,7 @@
         .mid { color: #ef6c00; font-weight: bold; }
         .bad { color: #c62828; font-weight: bold; }
         .small { color: #666; font-size: 0.92em; line-height: 1.6; }
-        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 12px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 12px; }
         .summary-box { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 14px; }
         .summary-box strong { display: block; font-size: 1.3em; margin-bottom: 4px; }
         @media (max-width: 900px) {
@@ -76,14 +76,18 @@
                 <div v-if="recommendationEvent" class="small">
                     <div><strong>生成依据：</strong>[[ recommendationEvent.reason_mapping ]]</div>
                     <div><strong>诊断摘要：</strong>[[ recommendationEvent.diagnostic_summary ]]</div>
+                    <div><strong>证据等级：</strong>[[ recommendationEvent.evidence_level ]]</div>
                     <div><strong>推荐时间：</strong>[[ recommendationEvent.recommendation_time ]]</div>
                     <div><strong>推荐来源：</strong>[[ recommendationEvent.source ]]</div>
                     <div><strong>规则调整：</strong>[[ recommendationEvent.rule_adjustment ]]</div>
+                    <div><strong>验证状态：</strong>[[ recommendationEvent.validation_status ]]</div>
+                    <div><strong>评估说明：</strong>[[ recommendationEvent.evaluation_notes ]]</div>
                     <div style="margin-top:8px;">
                         <span class="pill" :class="recommendationEvent.status">[[ recommendationEvent.status ]]</span>
                     </div>
                 </div>
-                <a :href="'/problem/' + recommendId" class="btn">🚀 立即挑战 (ID: [[ recommendId ]])</a>
+                <a v-if="recommendId" :href="'/problem/' + recommendId" class="btn">🚀 立即挑战 (ID: [[ recommendId ]])</a>
+                <div v-else class="small">系统会在样本达到最低要求后再给出更可靠的个性化推荐。</div>
             </div>
         </div>
 
@@ -102,9 +106,13 @@
                     <strong>[[ recommendationSummary.average_score ]] 分</strong>
                     <span>平均推荐准确度</span>
                 </div>
+                <div class="summary-box">
+                    <strong>[[ recommendationSummary.insufficient ]]</strong>
+                    <span>证据不足次数</span>
+                </div>
             </div>
             <p class="small" style="margin-top:12px;">
-                系统会综合“薄弱项命中度、难度匹配度、依据可信度、推荐后效果变化、学生主观反馈”来判断本次推荐是否准确。
+                系统会综合“薄弱项命中度、难度匹配度、依据可信度、推荐后效果变化、学生主观反馈”来判断本次推荐是否准确；当历史样本或后续同类题样本不足时，会明确标记为“证据不足”或“待继续观察”。
             </p>
         </div>
 
@@ -150,12 +158,13 @@
                     <td>
                         薄弱项命中 [[ item.matched_skill_score || 0 ]] 分<br>
                         难度匹配 [[ item.difficulty_fit_score || 0 ]] 分<br>
-                        依据可信度 [[ item.evidence_confidence || 0 ]] 分
+                        依据可信度 [[ item.evidence_confidence || 0 ]] 分<br>
+                        证据等级 [[ item.evidence_level || '低' ]]
                     </td>
                     <td>
                         前：[[ item.before_accuracy || 0 ]]% / [[ item.before_avg_time || 0 ]] 秒<br>
-                        后：[[ item.after_accuracy || 0 ]]% / [[ item.after_avg_time || 0 ]] 秒<br>
-                        效果分 [[ item.effect_score || 0 ]]
+                        后：[[ item.after_accuracy == null ? '待观察' : item.after_accuracy + '%' ]] / [[ item.after_avg_time == null ? '待观察' : item.after_avg_time + ' 秒' ]]<br>
+                        效果分 [[ item.effect_score || 0 ]]，后续样本 [[ item.followup_sample_size || 0 ]] 条
                     </td>
                     <td>
                         匹配度：[[ item.student_feedback || '待填写' ]]<br>
@@ -163,7 +172,7 @@
                     </td>
                     <td>
                         <span :class="accuracyClass(item.accuracy_score || 0)">[[ item.accuracy_score || 0 ]] 分</span><br>
-                        <span class="small">[[ item.accuracy_label || '待验证' ]]</span>
+                        <span class="small">[[ item.accuracy_label || '待验证' ]] / [[ item.validation_status || '待继续观察' ]]</span>
                     </td>
                 </tr>
             </table>

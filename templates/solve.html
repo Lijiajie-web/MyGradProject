@@ -65,6 +65,9 @@
                 薄弱知识点：{{ recommendation['weak_skill'] }}<br>
                 生成依据：{{ recommendation['reason_mapping'] }}<br>
                 诊断摘要：{{ recommendation['diagnostic_summary'] }}<br>
+                当前证据等级：{{ recommendation['evidence_level'] }}<br>
+                当前验证状态：{{ recommendation['validation_status'] }}<br>
+                评估说明：{{ recommendation['evaluation_notes'] }}<br>
                 当前推荐准确度：{{ recommendation['accuracy_score'] }} 分（{{ recommendation['accuracy_label'] }}）
             </div>
 
@@ -160,7 +163,7 @@ def solution():
             .then(response => response.json())
             .then(data => {
                 document.getElementById('feedback-msg').innerText = data.ok
-                    ? `${data.msg} 当前准确度：${data.accuracy_score} 分（${data.accuracy_label}）`
+                    ? `${data.msg} 当前准确度：${data.accuracy_score} 分（${data.accuracy_label}），验证状态：${data.validation_status}`
                     : data.msg;
             });
         }

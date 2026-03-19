@@ -2,9 +2,9 @@
 ## 面向程序设计课程的个性化推荐与指导系统
 
 ## Project Overview
-This project is a Flask-based teaching support platform designed for programming courses. It integrates core functionalities such as user registration and login, problem display and filtering, random quiz generation, code submission, learning-record tracking, learner-profile visualization, leaderboard display, and data export. The current version further extends the original prototype with an explainable recommendation mechanism, recommendation-evidence recording, recommendation-effect tracking, and a feedback-loop optimization process. The system can now explicitly record why a problem is recommended, how it corresponds to a student's weak knowledge points, historical exercise performance, and target difficulty, and whether the recommendation actually improves later learning outcomes.
+This project is a Flask-based teaching support platform designed for programming courses. It integrates core functionalities such as user registration and login, problem display and filtering, random quiz generation, code submission, learning-record tracking, learner-profile visualization, leaderboard display, and data export. The current version further extends the original prototype with an explainable recommendation mechanism, recommendation-evidence recording, recommendation-effect tracking, and a feedback-loop optimization process. In addition, the recommendation module now explicitly marks whether the evidence behind a recommendation is sufficient, whether follow-up samples are enough to validate it, and whether the system should temporarily avoid making a strong recommendation claim.
 
-本项目是一个基于 Flask 开发的面向程序设计课程的教学支持平台。系统集成了用户注册与登录、题目展示与筛选、随机组卷、代码提交、学习记录追踪、学习画像可视化、排行榜展示以及数据导出等核心功能。在原有原型基础上，当前版本进一步补充了解释型推荐、推荐依据记录、推荐效果追踪与反馈闭环优化机制。系统不仅能够给出推荐题目，还能够明确记录推荐原因，说明其与学生薄弱知识点、历史做题表现和目标难度之间的对应关系，并持续判断该推荐是否真正改善了后续学习表现。
+本项目是一个基于 Flask 开发的面向程序设计课程的教学支持平台。系统集成了用户注册与登录、题目展示与筛选、随机组卷、代码提交、学习记录追踪、学习画像可视化、排行榜展示以及数据导出等核心功能。在原有原型基础上，当前版本进一步补充了解释型推荐、推荐依据记录、推荐效果追踪与反馈闭环优化机制。除记录“为什么推荐”之外，系统现在还会明确标注“当前证据是否充分”“后续验证样本是否足够”，当数据不足时不会把推荐说得过于确定，从而更真实地回答“推荐准不准”这一问题。
 
 ---
 ## System Interface Preview / 系统界面展示
@@ -58,11 +58,15 @@ The current version no longer stops at generating a recommendation result. Inste
 The system continuously tracks correctness before and after recommendation, completion time, error-type changes, and later same-type problem performance, then uses the observed effect to adjust subsequent recommendation rules and difficulty.  
 系统能够持续追踪推荐前后的正确率、完成时间、错误类型变化以及后续同类题表现，并根据观测到的效果动态调整后续推荐规则和难度，形成反馈闭环。
 
-### 5. AST-Assisted Code Analysis / AST 辅助代码分析
+### 5. Conservative Accuracy Validation / 保守型准确度校验
+The system does not treat every recommendation as "accurate" by default. It now distinguishes between evidence sufficiency, pending validation, and validated recommendations, and shows when the system still needs more learning samples before making a reliable judgment.  
+系统不会默认把每一次推荐都视为“准确”。当前版本新增了“证据不足—待验证—已验证”的区分逻辑，并会明确提示何时仍需更多学习样本后才能对推荐准确性做出可靠判断。
+
+### 6. AST-Assisted Code Analysis / AST 辅助代码分析
 The project introduces Python AST-based code structure analysis to extract simple structural features from submitted code and support error classification and feedback generation.  
 项目引入基于 Python AST 的代码结构分析方法，对提交代码提取简单结构特征，并用于辅助错误分类与反馈生成。
 
-### 6. Integrated Graduation Project Prototype / 一体化毕业设计原型
+### 7. Integrated Graduation Project Prototype / 一体化毕业设计原型
 The repository demonstrates an integrated prototype that combines backend development, database design, web interaction, learner analytics, and academic-oriented system presentation.  
 本仓库展示的是一个集后端开发、数据库设计、Web 交互、学习分析与学术展示于一体的毕业设计原型。
 
@@ -138,11 +142,15 @@ After a recommendation is issued and completed, the system continues to track:
 - 后续同类题目的表现；
 - 用于判断推荐是否有效的效果评分。
 
-### 3. Closed-Loop Rule Adjustment / 闭环规则调整
+### 3. Accuracy Validation and Evidence Sufficiency / 准确度校验与证据充分性判断
+The system adds explicit fields such as evidence level, validation status, follow-up sample size, and evaluation notes. If the user has not accumulated enough logs yet, or if there are not enough later same-type exercises after a recommendation, the recommendation will be marked as "insufficient evidence" or "keep observing" instead of being overclaimed as accurate.  
+系统新增了证据等级、验证状态、后续样本数和评估说明等字段。当学生历史日志不足，或推荐之后尚未积累足够的同类题样本时，系统会把该次推荐标记为“证据不足”或“待继续观察”，而不是过早宣称推荐准确。
+
+### 4. Closed-Loop Rule Adjustment / 闭环规则调整
 The platform does not only observe recommendation effects; it also uses them to refine future recommendations. If past recommendations on the same knowledge point are less helpful, the system can lower the target difficulty and continue consolidation. If previous recommendations are helpful, it can maintain or moderately increase the difficulty.  
 平台不仅观察推荐效果，还会利用这些效果反馈去修正后续推荐策略。如果同一知识点的前序推荐帮助较小，系统可以降低目标难度并继续巩固；如果前序推荐效果较好，则可以维持或适度提高难度。
 
-### 4. Learning-Log Enhancement / 学习日志增强
+### 5. Learning-Log Enhancement / 学习日志增强
 The learning log now stores not only submission status but also recommendation source, recommendation time, completion state, completion duration, error type, effect change, and same-type follow-up performance. This provides a more direct basis for thesis statistics, charts, and case studies.  
 当前学习日志除了提交状态外，还会记录推荐来源、推荐时间、完成状态、完成时长、错误类型、效果变化以及同类题后续表现，为论文中的统计分析、图表展示和案例研究提供更加直接的数据基础。
 
@@ -186,6 +194,7 @@ The learning log now stores not only submission status but also recommendation s
 The current prototype can provide the following analyzable data for thesis writing:
 - recommendation source, recommendation time, and recommendation status;
 - weak knowledge-point labels and matched problem difficulty;
+- evidence level, validation status, and follow-up sample size;
 - correctness, completion time, and error-type changes before/after recommendation;
 - same-type follow-up performance after recommendation;
 - enriched learning logs for case analysis and CSV export.
@@ -193,6 +202,7 @@ The current prototype can provide the following analyzable data for thesis writi
 当前原型可以为论文写作提供以下可分析数据：
 - 推荐来源、推荐时间与推荐状态；
 - 薄弱知识点标签及匹配题目难度；
+- 证据等级、验证状态与后续样本数；
 - 推荐前后正确率、完成时间与错误类型变化；
 - 推荐后的同类题后续表现；
 - 可用于案例分析与 CSV 导出的增强型学习日志。

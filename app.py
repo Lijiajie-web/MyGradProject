@@ -34,6 +34,7 @@ SKILL_MAP = {
 SKILL_KEYS = list(dict.fromkeys(SKILL_MAP.values()))
 FEEDBACK_SCORE_MAP = {'匹配': 100, '一般': 60, '不匹配': 20}
 HELPFUL_SCORE_MAP = {'有帮助': 100, '一般': 60, '没帮助': 20}
+MIN_LOGS_FOR_PERSONAL_RECOMMENDATION = 3
 
 
 def get_connection():
@@ -137,6 +138,10 @@ def init_db():
             'perceived_helpfulness': 'perceived_helpfulness TEXT',
             'manual_helpful': 'manual_helpful INTEGER DEFAULT 0',
             'diagnostic_summary': 'diagnostic_summary TEXT',
+            'evidence_level': "evidence_level TEXT DEFAULT '低'",
+            'validation_status': "validation_status TEXT DEFAULT '待继续观察'",
+            'followup_sample_size': 'followup_sample_size INTEGER DEFAULT 0',
+            'evaluation_notes': 'evaluation_notes TEXT',
         },
     )
 
@@ -352,14 +357,27 @@ def compute_recommendation_scores(weak_row, problem):
     difficulty_gap = abs((weak_row['avg_difficulty'] or 1) - problem['difficulty'])
     difficulty_fit_score = round(clamp(100 - difficulty_gap * 25, 40, 100), 1)
     evidence_confidence = round(
-        clamp((100 - weak_row['accuracy']) * 0.45 + min(weak_row['attempts'], 8) * 6 + min(weak_row['avg_time'], 120) * 0.2, 35, 100),
+        clamp(
+            (100 - weak_row['accuracy']) * 0.32
+            + min(weak_row['attempts'], 8) * 7
+            + min(weak_row['avg_time'], 120) * 0.18
+            + min(weak_row['attempts'], 3) * 4,
+            20,
+            95,
+        ),
         1,
     )
+    if weak_row['attempts'] >= 6:
+        evidence_level = '高'
+    elif weak_row['attempts'] >= 3:
+        evidence_level = '中'
+    else:
+        evidence_level = '低'
     diagnostic_summary = (
         f"薄弱项命中度 {matched_skill_score} 分，难度匹配度 {difficulty_fit_score} 分，"
-        f"依据可信度 {evidence_confidence} 分。"
+        f"依据可信度 {evidence_confidence} 分，当前证据等级为{evidence_level}。"
     )
-    return matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary
+    return matched_skill_score, difficulty_fit_score, evidence_confidence, evidence_level, diagnostic_summary
 
 
 def calculate_recommendation_accuracy(rec):
@@ -367,6 +385,12 @@ def calculate_recommendation_accuracy(rec):
     effect_component = clamp((rec['effect_score'] or 0) + 55, 20, 100) if rec['effect_score'] is not None else 45
     feedback_component = FEEDBACK_SCORE_MAP.get(rec['student_feedback'], 60)
     helpful_component = HELPFUL_SCORE_MAP.get(rec['perceived_helpfulness'], 60)
+    evidence_level = rec['evidence_level'] or '低'
+    followup_sample_size = rec['followup_sample_size'] or 0
+
+    if evidence_level == '低' and followup_sample_size == 0 and not rec['student_feedback']:
+        accuracy_score = round(base * 0.75, 1)
+        return accuracy_score, '证据不足'
 
     if rec['status'] in {'pending', 'completed'} and not rec['student_feedback'] and rec['effect_score'] is None:
         accuracy_score = round(base * 0.85, 1)
@@ -413,17 +437,14 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
     if existing:
         return refresh_recommendation_accuracy(conn, existing['id'])
 
+    observed_rows = [row for row in basis_rows if row['attempts'] > 0]
+    if len(fetch_logs_for_user(conn, user_id)) < MIN_LOGS_FOR_PERSONAL_RECOMMENDATION or not observed_rows:
+        return None
+
     weak_row = min(
-        basis_rows,
-        key=lambda row: (row['accuracy'], -row['avg_time'], row['attempts'] if row['attempts'] else 9999),
-    ) if basis_rows else {
-        'knowledge_point': '基础语法',
-        'attempts': 0,
-        'accuracy': 0.0,
-        'avg_time': 0.0,
-        'avg_difficulty': 1.0,
-        'top_errors': '暂无',
-    }
+        observed_rows,
+        key=lambda row: (row['accuracy'], -row['avg_time'], -row['attempts']),
+    )
 
     base_difficulty = max(1, min(4, round(weak_row['avg_difficulty'] or 1)))
     adjusted_difficulty, rule_adjustment = derive_rule_adjustment(conn, user_id, weak_row['knowledge_point'], base_difficulty)
@@ -432,15 +453,17 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
         c.execute('SELECT * FROM problems ORDER BY difficulty ASC, id ASC LIMIT 1')
         problem = c.fetchone()
 
-    matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary = compute_recommendation_scores(weak_row, problem)
+    matched_skill_score, difficulty_fit_score, evidence_confidence, evidence_level, diagnostic_summary = compute_recommendation_scores(weak_row, problem)
     recommendation_reason = (
         f"薄弱知识点为【{weak_row['knowledge_point']}】，历史正确率 {weak_row['accuracy']}%，"
-        f"平均完成时间 {weak_row['avg_time']} 秒，历史高频错误为 {weak_row['top_errors']}。"
+        f"平均完成时间 {weak_row['avg_time']} 秒，历史高频错误为 {weak_row['top_errors']}，"
+        f"当前诊断证据等级为{evidence_level}。"
     )
     mapping = (
         f"推荐题目《{problem['title']}》属于 {extract_knowledge_point(problem['tag'])}，"
         f"难度 {problem['difficulty']} 星，与学生当前薄弱项和历史练习难度相匹配。"
     )
+    validation_status = '待继续观察' if evidence_level == '低' else '待验证'
     now = datetime.datetime.now().isoformat(sep=' ', timespec='seconds')
     c.execute(
         '''INSERT INTO recommendation_events
@@ -448,8 +471,8 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
             reason_mapping, matched_difficulty, historical_accuracy, historical_avg_time,
             historical_error_types, before_accuracy, before_avg_time, before_error_types,
             matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary,
-            rule_adjustment, status, recommendation_time)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
+            evidence_level, validation_status, evaluation_notes, rule_adjustment, status, recommendation_time)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
         (
             user_id,
             problem['id'],
@@ -469,6 +492,9 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
             difficulty_fit_score,
             evidence_confidence,
             diagnostic_summary,
+            evidence_level,
+            validation_status,
+            '当前推荐基于历史日志诊断生成，需结合学生反馈与后续同类题表现继续验证。',
             rule_adjustment,
             now,
         ),
@@ -484,47 +510,72 @@ def evaluate_recommendation_effect(conn, recommendation_id):
     if not rec:
         return None
 
+    c.execute(
+        '''SELECT * FROM learning_logs
+           WHERE recommendation_id=?
+           ORDER BY timestamp ASC''',
+        (recommendation_id,),
+    )
+    recommendation_logs = c.fetchall()
+    if not recommendation_logs:
+        return refresh_recommendation_accuracy(conn, recommendation_id)
+
+    recommended_log = recommendation_logs[0]
     chapter_prefix = next((k for k, v in SKILL_MAP.items() if v == rec['knowledge_point']), rec['knowledge_point'])
     c.execute(
         '''SELECT l.*, p.tag AS problem_tag
            FROM learning_logs l
            LEFT JOIN problems p ON p.id = l.problem_id
-           WHERE l.user_id=? AND p.tag LIKE ? AND l.timestamp >= ?
+           WHERE l.user_id=? AND p.tag LIKE ? AND l.timestamp > ? AND l.recommendation_id IS NULL
            ORDER BY l.timestamp ASC''',
-        (rec['user_id'], f"{chapter_prefix}%", rec['recommendation_time']),
+        (rec['user_id'], f"{chapter_prefix}%", recommended_log['timestamp']),
     )
     followup_logs = c.fetchall()
-    if not followup_logs:
-        return refresh_recommendation_accuracy(conn, recommendation_id)
-
     attempts = len(followup_logs)
     accepted = sum(1 for row in followup_logs if row['status'] == 'Accepted')
-    after_accuracy = round(accepted / attempts * 100, 1)
-    after_avg_time = round(sum((row['duration_seconds'] or 0) for row in followup_logs) / attempts, 1)
+    after_accuracy = round(accepted / attempts * 100, 1) if attempts else None
+    after_avg_time = round(sum((row['duration_seconds'] or 0) for row in followup_logs) / attempts, 1) if attempts else None
     error_counter = Counter(row['error_type'] or '未分类' for row in followup_logs)
-    after_errors = ', '.join(f'{name}×{count}' for name, count in error_counter.most_common(3)) or '暂无'
+    after_errors = ', '.join(f'{name}×{count}' for name, count in error_counter.most_common(3)) if attempts else None
 
     before_accuracy = rec['before_accuracy'] or 0
     before_avg_time = rec['before_avg_time'] or 0
-    effect_score = round((after_accuracy - before_accuracy) + max(0, before_avg_time - after_avg_time) * 0.3, 1)
-    helpful = 1 if (after_accuracy >= before_accuracy or after_avg_time <= before_avg_time) and effect_score >= 0 else 0
-    completed_at = followup_logs[0]['timestamp']
+    recommended_success = 1 if recommended_log['status'] == 'Accepted' else 0
+    if attempts:
+        effect_score = round(
+            (after_accuracy - before_accuracy) + max(0, before_avg_time - after_avg_time) * 0.3 + recommended_success * 8,
+            1,
+        )
+        helpful = 1 if (after_accuracy >= before_accuracy or after_avg_time <= before_avg_time) and effect_score >= 0 else 0
+        validation_status = '已验证'
+        evaluation_notes = (
+            f"已收集 {attempts} 条同知识点后续练习记录，用于验证本次推荐是否真的改善了同类题表现。"
+        )
+    else:
+        effect_score = 8.0 if recommended_success else -5.0
+        helpful = 1 if recommended_success else 0
+        validation_status = '待继续观察'
+        evaluation_notes = '推荐题已完成，但同知识点后续样本不足；当前仅依据推荐题完成情况做阶段性判断。'
+    completed_at = recommended_log['timestamp']
 
     c.execute(
         '''UPDATE recommendation_events
            SET after_accuracy=?, after_avg_time=?, after_error_types=?, followup_accuracy=?,
                effect_score=?, helpful=?, status='evaluated', completed_at=COALESCE(completed_at, ?),
-               last_evaluated_at=?
+               last_evaluated_at=?, validation_status=?, followup_sample_size=?, evaluation_notes=?
            WHERE id=?''',
         (
             after_accuracy,
             after_avg_time,
             after_errors,
-            after_accuracy,
+            after_accuracy if after_accuracy is not None else 0,
             effect_score,
             helpful,
             completed_at,
             datetime.datetime.now().isoformat(sep=' ', timespec='seconds'),
+            validation_status,
+            attempts,
+            evaluation_notes,
             recommendation_id,
         ),
     )
@@ -541,12 +592,14 @@ def evaluate_recommendation_effect(conn, recommendation_id):
 def build_recommendation_summary(recommendation_history):
     total = len(recommendation_history)
     accurate = sum(1 for item in recommendation_history if (item['accuracy_score'] or 0) >= 60)
-    validated = sum(1 for item in recommendation_history if item['accuracy_label'] != '待验证')
+    validated = sum(1 for item in recommendation_history if item['accuracy_label'] not in {'待验证', '证据不足'})
+    insufficient = sum(1 for item in recommendation_history if item['accuracy_label'] == '证据不足')
     average_score = round(sum((item['accuracy_score'] or 0) for item in recommendation_history) / total, 1) if total else 0.0
     return {
         'total': total,
         'validated': validated,
         'accurate': accurate,
+        'insufficient': insufficient,
         'average_score': average_score,
     }
 
@@ -716,6 +769,7 @@ def recommendation_feedback():
             'msg': '反馈已记录，系统会据此判断本次推荐是否准确。',
             'accuracy_score': updated['accuracy_score'] if updated else 0,
             'accuracy_label': updated['accuracy_label'] if updated else '待验证',
+            'validation_status': updated['validation_status'] if updated else '待继续观察',
         }
     )
 
@@ -803,9 +857,12 @@ def submit_code():
         feedback = '运行完成' if not parse_error else '检测到语法问题，建议先修复后再提交'
         effect_text = None
         if evaluated_rec:
+            after_accuracy_text = f"{evaluated_rec['after_accuracy']}%" if evaluated_rec['after_accuracy'] is not None else '待继续观察'
+            after_time_text = f"{evaluated_rec['after_avg_time']} 秒" if evaluated_rec['after_avg_time'] is not None else '待继续观察'
             effect_text = (
-                f"推荐后同类题正确率 {evaluated_rec['after_accuracy']}%，平均用时 {evaluated_rec['after_avg_time']} 秒，"
-                f"当前推荐准确度 {evaluated_rec['accuracy_score']} 分（{evaluated_rec['accuracy_label']}）。"
+                f"推荐后同类题正确率 {after_accuracy_text}，平均用时 {after_time_text}，"
+                f"当前推荐准确度 {evaluated_rec['accuracy_score']} 分（{evaluated_rec['accuracy_label']}），"
+                f"验证状态：{evaluated_rec['validation_status']}。"
             )
         return jsonify(
             {
@@ -847,8 +904,8 @@ def dashboard():
     recommendation_summary = build_recommendation_summary(recommendation_history)
     conn.close()
 
-    recommendation_text = '暂无推荐'
-    recommend_id = 1
+    recommendation_text = f'当前学习样本少于 {MIN_LOGS_FOR_PERSONAL_RECOMMENDATION} 条，系统暂不做强结论推荐；请先完成几道题后再生成更可靠的个性化推荐。'
+    recommend_id = None
     algo_type = '规则推断'
     if recommendation:
         recommendation_text = recommendation['recommendation_reason']
