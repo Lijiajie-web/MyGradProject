@@ -2,104 +2,209 @@
 <html>
 <head>
     <title>个性化学习分析报告</title>
-    <!-- 引入 Vue.js (满足毕设要求) -->
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-    <!-- 引入 ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1180px; margin: 0 auto; padding: 20px; background: #f0f2f5; color: #333; }
         .card { background: white; padding: 25px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #2c3e50; }
-        .btn { background: #2196F3; color: white; text-decoration: none; padding: 10px 25px; border-radius: 20px; display: inline-block; margin-top: 10px; font-weight: bold; transition: 0.3s;}
-        .btn:hover { background: #1976D2; transform: scale(1.05); }
-        #radar-chart { width: 100%; height: 400px; }
-        
+        .btn { background: #2196F3; color: white; text-decoration: none; padding: 10px 25px; border-radius: 20px; display: inline-block; margin-top: 10px; font-weight: bold; transition: 0.3s; }
+        .btn:hover { background: #1976D2; transform: scale(1.03); }
+        #radar-chart { width: 100%; height: 380px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
         th { background-color: #f8f9fa; color: #666; }
-        
-        .tag-algo { background: #e8f5e9; color: #2e7d32; padding: 5px 10px; border-radius: 4px; font-size: 0.9em; border: 1px solid #c8e6c9;}
+        .tag-algo { background: #e8f5e9; color: #2e7d32; padding: 5px 10px; border-radius: 4px; font-size: 0.9em; border: 1px solid #c8e6c9; }
+        .grid-two { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+        .metric-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+        .metric-box { background: #f8fbff; border: 1px solid #dbeafe; padding: 16px; border-radius: 10px; }
+        .metric-box strong { display: block; font-size: 1.5em; color: #0f5cc0; margin-bottom: 6px; }
+        .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.85em; }
+        .pill.pending { background: #fff8e1; color: #a36a00; }
+        .pill.completed { background: #e3f2fd; color: #1565c0; }
+        .pill.evaluated { background: #e8f5e9; color: #2e7d32; }
+        .good { color: #2e7d32; font-weight: bold; }
+        .bad { color: #c62828; font-weight: bold; }
+        .small { color: #666; font-size: 0.92em; line-height: 1.6; }
+        .section-title { margin-bottom: 6px; }
+        @media (max-width: 900px) {
+            .grid-two, .metric-strip { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
-    <!-- 这里是 Vue 的挂载点 -->
     <div id="app">
         <h1>📊 个性化学习分析报告</h1>
         <p style="text-align:center">
-            <a href="/">← 返回首页</a> &nbsp;|&nbsp; 
+            <a href="/">← 返回首页</a> &nbsp;|&nbsp;
             <a href="/export_data" style="color: #FF9800;">📥 导出数据用于论文分析</a>
         </p>
 
-        <!-- 1. 学习者模型可视化 -->
         <div class="card">
-            <h2>🧠 你的技能能力模型 (Learner Model)</h2>
-            <div id="radar-chart"></div>
-        </div>
-
-        <!-- 2. 智能推荐引擎 -->
-        <div class="card" style="text-align: center; border-left: 5px solid #2196F3;">
-            <h2>💡 智能推荐引擎</h2>
-            <p>当前运行算法：<span class="tag-algo">[[ algoType ]]</span></p>
-            
-            <div style="font-size: 1.2em; margin: 20px 0; color: #444;">
-                [[ recommendation ]]
+            <h2 class="section-title">📌 学习概览</h2>
+            <div class="metric-strip">
+                <div class="metric-box">
+                    <strong>[[ overallAccuracy ]]%</strong>
+                    <span>整体正确率</span>
+                </div>
+                <div class="metric-box">
+                    <strong>[[ overallAvgTime ]] 秒</strong>
+                    <span>平均完成时间</span>
+                </div>
+                <div class="metric-box">
+                    <strong>[[ logs.length ]] 条</strong>
+                    <span>累计学习日志</span>
+                </div>
             </div>
-            
-            <a :href="'/problem/' + recommendId" class="btn">🚀 立即挑战 (ID: [[ recommendId ]])</a>
         </div>
 
-        <!-- 3. 历史记录 (Vue 渲染) -->
+        <div class="grid-two">
+            <div class="card">
+                <h2>🧠 技能能力模型</h2>
+                <div id="radar-chart"></div>
+            </div>
+
+            <div class="card" style="border-left: 5px solid #2196F3;">
+                <h2>💡 智能推荐引擎</h2>
+                <p>当前运行算法：<span class="tag-algo">[[ algoType ]]</span></p>
+                <div style="font-size: 1.05em; margin: 16px 0; color: #444; line-height: 1.7;">
+                    [[ recommendation ]]
+                </div>
+                <div v-if="recommendationEvent" class="small">
+                    <div><strong>生成依据：</strong>[[ recommendationEvent.reason_mapping ]]</div>
+                    <div><strong>推荐时间：</strong>[[ recommendationEvent.recommendation_time ]]</div>
+                    <div><strong>推荐来源：</strong>[[ recommendationEvent.source ]]</div>
+                    <div><strong>规则调整：</strong>[[ recommendationEvent.rule_adjustment ]]</div>
+                    <div style="margin-top:8px;">
+                        <span class="pill" :class="recommendationEvent.status">[[ recommendationEvent.status ]]</span>
+                    </div>
+                </div>
+                <a :href="'/problem/' + recommendId" class="btn">🚀 立即挑战 (ID: [[ recommendId ]])</a>
+            </div>
+        </div>
+
         <div class="card">
-            <h2>📜 历史做题记录 (Vue.js Rendering)</h2>
+            <h2>🧾 推荐依据与薄弱项映射</h2>
+            <table>
+                <tr>
+                    <th>知识点</th>
+                    <th>尝试次数</th>
+                    <th>正确率</th>
+                    <th>平均用时</th>
+                    <th>历史难度</th>
+                    <th>高频错误</th>
+                </tr>
+                <tr v-for="row in basisRows">
+                    <td>[[ row.knowledge_point ]]</td>
+                    <td>[[ row.attempts ]]</td>
+                    <td :class="row.accuracy >= 60 ? 'good' : 'bad'">[[ row.accuracy ]]%</td>
+                    <td>[[ row.avg_time ]] 秒</td>
+                    <td>[[ row.avg_difficulty ]] 星</td>
+                    <td>[[ row.top_errors ]]</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>🔁 推荐效果追踪</h2>
+            <table>
+                <tr>
+                    <th>推荐时间</th>
+                    <th>知识点 / 题目</th>
+                    <th>推荐前</th>
+                    <th>推荐后</th>
+                    <th>后续同类题表现</th>
+                    <th>效果评估</th>
+                </tr>
+                <tr v-for="item in recommendationHistory">
+                    <td>[[ item.recommendation_time ]]</td>
+                    <td>
+                        <div>[[ item.knowledge_point ]] → 题目 #[[ item.problem_id ]]</div>
+                        <div class="small">来源：[[ item.source ]]</div>
+                    </td>
+                    <td>
+                        正确率 [[ item.before_accuracy || 0 ]]%<br>
+                        用时 [[ item.before_avg_time || 0 ]] 秒<br>
+                        错误 [[ item.before_error_types || '暂无' ]]
+                    </td>
+                    <td>
+                        正确率 [[ item.after_accuracy || 0 ]]%<br>
+                        用时 [[ item.after_avg_time || 0 ]] 秒<br>
+                        错误 [[ item.after_error_types || '待评估' ]]
+                    </td>
+                    <td>[[ item.followup_accuracy || 0 ]]%</td>
+                    <td>
+                        <span :class="(item.effect_score || 0) >= 0 ? 'good' : 'bad'">[[ item.effect_score || 0 ]]</span><br>
+                        <span class="small">[[ item.helpful ? '已证明有帮助' : '仍需继续观察' ]]</span>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>📜 学习日志（含推荐闭环字段）</h2>
             <table>
                 <tr>
                     <th>时间</th>
-                    <th>题目ID</th>
+                    <th>题目</th>
                     <th>状态</th>
+                    <th>推荐来源</th>
+                    <th>推荐时间</th>
+                    <th>完成状态</th>
+                    <th>效果变化</th>
+                    <th>错误类型</th>
                 </tr>
                 <tr v-for="log in logs">
-                    <td>[[ log[5] ]]</td>
-                    <td>题目 #[[ log[2] ]]</td>
-                    <td :style="{color: log[4] === 'Accepted' ? 'green' : 'red', fontWeight: 'bold'}">
-                        [[ log[4] ]]
-                    </td>
+                    <td>[[ log.timestamp ]]</td>
+                    <td>题目 #[[ log.problem_id ]] / [[ log.problem_title || '未知题目' ]]</td>
+                    <td :style="{color: log.status === 'Accepted' ? 'green' : 'red', fontWeight: 'bold'}">[[ log.status ]]</td>
+                    <td>[[ log.recommendation_source || '自主练习' ]]</td>
+                    <td>[[ log.recommended_at || '-' ]]</td>
+                    <td>[[ log.completion_state || '-' ]]</td>
+                    <td>[[ log.effect_change || 0 ]]</td>
+                    <td>[[ log.error_type || '未分类' ]]</td>
                 </tr>
             </table>
         </div>
     </div>
 
     <script>
-        // 1. 准备数据 (从后端 Flask 传过来的)
-        // 注意：这里使用 Jinja2 渲染出 JSON 数据供 Vue 使用
         const skillsData = {{ skills | tojson }};
         const logsData = {{ logs | tojson }};
-        const recText = "{{ recommendation }}";
+        const recText = {{ recommendation | tojson }};
         const recId = {{ recommend_id }};
-        const algoName = "{{ algo_type }}";
+        const algoName = {{ algo_type | tojson }};
+        const basisRows = {{ basis_rows | tojson }};
+        const recommendationEvent = {{ recommendation_event | tojson }};
+        const recommendationHistory = {{ recommendation_history | tojson }};
+        const overallAccuracy = {{ overall_accuracy | tojson }};
+        const overallAvgTime = {{ overall_avg_time | tojson }};
 
-        // 2. 初始化 Vue 实例
         new Vue({
             el: '#app',
-            delimiters: ['[[', ']]'], // 修改 Vue 分隔符，防止和 Flask 冲突
+            delimiters: ['[[', ']]'],
             data: {
                 logs: logsData,
                 recommendation: recText,
                 recommendId: recId,
-                algoType: algoName
+                algoType: algoName,
+                basisRows: basisRows,
+                recommendationEvent: recommendationEvent,
+                recommendationHistory: recommendationHistory,
+                overallAccuracy: overallAccuracy,
+                overallAvgTime: overallAvgTime
             }
         });
 
-        // 3. 初始化 ECharts 雷达图
-        var chartDom = document.getElementById('radar-chart');
-        var myChart = echarts.init(chartDom);
-        var indicators = [];
-        var dataValues = [];
-        for (var key in skillsData) {
+        const chartDom = document.getElementById('radar-chart');
+        const myChart = echarts.init(chartDom);
+        const indicators = [];
+        const dataValues = [];
+        for (const key in skillsData) {
             indicators.push({ name: key, max: 100 });
             dataValues.push(skillsData[key]);
         }
-        var option = {
+        myChart.setOption({
             tooltip: {},
             radar: { indicator: indicators },
             series: [{
@@ -108,12 +213,11 @@
                 data: [{
                     value: dataValues,
                     name: '当前能力',
-                    areaStyle: { color: 'rgba(33, 150, 243, 0.5)' },
+                    areaStyle: { color: 'rgba(33, 150, 243, 0.45)' },
                     itemStyle: { color: '#2196F3' }
                 }]
             }]
-        };
-        myChart.setOption(option);
+        });
     </script>
 </body>
 </html>
