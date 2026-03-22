@@ -465,40 +465,64 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
     )
     validation_status = '待继续观察' if evidence_level == '低' else '待验证'
     now = datetime.datetime.now().isoformat(sep=' ', timespec='seconds')
-    c.execute(
-        '''INSERT INTO recommendation_events
-           (user_id, problem_id, knowledge_point, weak_skill, source, recommendation_reason,
-            reason_mapping, matched_difficulty, historical_accuracy, historical_avg_time,
-            historical_error_types, before_accuracy, before_avg_time, before_error_types,
-            matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary,
-            evidence_level, validation_status, evaluation_notes, rule_adjustment, status, recommendation_time)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
-        (
-            user_id,
-            problem['id'],
-            extract_knowledge_point(problem['tag']),
-            weak_row['knowledge_point'],
-            DEFAULT_RECOMMENDATION_SOURCE,
-            recommendation_reason,
-            mapping,
-            problem['difficulty'],
-            overall_accuracy,
-            overall_avg_time,
-            weak_row['top_errors'],
-            weak_row['accuracy'],
-            weak_row['avg_time'],
-            weak_row['top_errors'],
-            matched_skill_score,
-            difficulty_fit_score,
-            evidence_confidence,
-            diagnostic_summary,
-            evidence_level,
-            validation_status,
-            '当前推荐基于历史日志诊断生成，需结合学生反馈与后续同类题表现继续验证。',
-            rule_adjustment,
-            now,
-        ),
+    insert_columns = (
+        'user_id',
+        'problem_id',
+        'knowledge_point',
+        'weak_skill',
+        'source',
+        'recommendation_reason',
+        'reason_mapping',
+        'matched_difficulty',
+        'historical_accuracy',
+        'historical_avg_time',
+        'historical_error_types',
+        'before_accuracy',
+        'before_avg_time',
+        'before_error_types',
+        'matched_skill_score',
+        'difficulty_fit_score',
+        'evidence_confidence',
+        'diagnostic_summary',
+        'evidence_level',
+        'validation_status',
+        'evaluation_notes',
+        'rule_adjustment',
+        'status',
+        'recommendation_time',
     )
+    insert_values = (
+        user_id,
+        problem['id'],
+        extract_knowledge_point(problem['tag']),
+        weak_row['knowledge_point'],
+        DEFAULT_RECOMMENDATION_SOURCE,
+        recommendation_reason,
+        mapping,
+        problem['difficulty'],
+        overall_accuracy,
+        overall_avg_time,
+        weak_row['top_errors'],
+        weak_row['accuracy'],
+        weak_row['avg_time'],
+        weak_row['top_errors'],
+        matched_skill_score,
+        difficulty_fit_score,
+        evidence_confidence,
+        diagnostic_summary,
+        evidence_level,
+        validation_status,
+        '当前推荐基于历史日志诊断生成，需结合学生反馈与后续同类题表现继续验证。',
+        rule_adjustment,
+        'pending',
+        now,
+    )
+    placeholders = ', '.join(['?'] * len(insert_columns))
+    column_names = ', '.join(insert_columns)
+    insert_sql = f'INSERT INTO recommendation_events ({column_names}) VALUES ({placeholders})'
+    if len(insert_columns) != len(insert_values):
+        raise ValueError('推荐事件写入失败：字段数量与参数数量不一致。')
+    c.execute(insert_sql, insert_values)
     conn.commit()
     return refresh_recommendation_accuracy(conn, c.lastrowid)
 
@@ -912,9 +936,11 @@ def dashboard():
         recommend_id = recommendation['problem_id']
         algo_type = recommendation['source']
 
+    logs_json_safe = [dict(row) for row in logs]
+
     return render_template(
         'dashboard.html',
-        logs=logs,
+        logs=logs_json_safe,
         skills=skills,
         recommendation=recommendation_text,
         recommend_id=recommend_id,
