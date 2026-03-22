@@ -472,7 +472,7 @@ def ensure_recommendation_for_user(conn, user_id, basis_rows, overall_accuracy, 
             historical_error_types, before_accuracy, before_avg_time, before_error_types,
             matched_skill_score, difficulty_fit_score, evidence_confidence, diagnostic_summary,
             evidence_level, validation_status, evaluation_notes, rule_adjustment, status, recommendation_time)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)''',
         (
             user_id,
             problem['id'],
