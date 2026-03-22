@@ -936,9 +936,11 @@ def dashboard():
         recommend_id = recommendation['problem_id']
         algo_type = recommendation['source']
 
+    logs_json_safe = [dict(row) for row in logs]
+
     return render_template(
         'dashboard.html',
-        logs=logs,
+        logs=logs_json_safe,
         skills=skills,
         recommendation=recommendation_text,
         recommend_id=recommend_id,
