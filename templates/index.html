@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Python 程序设计 - 课程题库</title>
+    <title>多语言智能 OJ 教学平台</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; display: flex; flex-direction: column; height: 95vh;}
+        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg,#eef4ff,#f8fbff); display: flex; flex-direction: column; height: 95vh;}
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
         
         .main-content { display: flex; gap: 20px; flex: 1; overflow: hidden; }
@@ -23,7 +23,7 @@
 
         /* 右侧 */
         .problem-list { flex: 1; overflow-y: auto; padding-right: 10px; }
-        .problem-box { background: white; border-left: 5px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; position: relative;}
+        .problem-box { background: white; border-left: 5px solid #3f51b5; padding: 15px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.2s; position: relative;}
         .problem-box:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-left-color: #2196F3; }
         
         .chapter-tag { background: #f5f5f5; color: #666; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; margin-right: 5px;}
@@ -45,7 +45,8 @@
 <body>
     
     <div class="header">
-        <h1>📚 Python 程序设计 - 智能教学系统</h1>
+        <h1>💻 多语言智能教学系统 · OJ 平台</h1>
+        <span style="background:#111827;color:#fff;padding:6px 10px;border-radius:14px;font-size:12px;">{{ build_tag }}</span>
         <div class="user-panel">
             {% if session.get('user_id') %}
                 <span>👤 {{ session.get('user_id') }}</span>
@@ -91,7 +92,7 @@
 
             {% for p in problems %}
                 <div class="problem-box">
-                    <a href="/problem/{{ p[0] }}" class="btn">开始挑战</a>
+                    <a href="/problem/{{ p[0] }}" class="btn">进入题目</a>
                     <h3 style="margin:0 0 10px 0;">
                         <span style="color:#bbb; font-size:0.8em; margin-right:5px;">{{ p[0] }}</span> 
                         {{ p[1] }}
