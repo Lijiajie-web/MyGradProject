@@ -35,6 +35,53 @@ SKILL_KEYS = list(dict.fromkeys(SKILL_MAP.values()))
 FEEDBACK_SCORE_MAP = {'匹配': 100, '一般': 60, '不匹配': 20}
 HELPFUL_SCORE_MAP = {'有帮助': 100, '一般': 60, '没帮助': 20}
 MIN_LOGS_FOR_PERSONAL_RECOMMENDATION = 3
+BUILD_TAG = 'v2026.05-multilang'
+
+
+LANGUAGE_OPTIONS = [
+    ('python', 'Python'),
+    ('cpp', 'C++'),
+    ('java', 'Java'),
+    ('c', 'C'),
+]
+
+LANGUAGE_TEMPLATES = {
+    'python': '# 请在这里编写 Python 代码\n',
+    'cpp': '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n',
+    'java': 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n    }\n}\n',
+    'c': '#include <stdio.h>\n\nint main() {\n    return 0;\n}\n',
+}
+
+PROBLEM_REFERENCE_ANSWERS = {
+    1: {'python': 'print("Hello World")', 'cpp': 'cout << "Hello World";', 'java': 'System.out.print("Hello World");', 'c': 'printf("Hello World");'},
+    2: {'python': 'a, b = input().split()\nprint(b, a)', 'cpp': 'string a,b; cin>>a>>b; cout<<b<<" "<<a;', 'java': 'String a=sc.next(), b=sc.next(); System.out.print(b+" "+a);', 'c': 'int a,b; scanf("%d%d",&a,&b); printf("%d %d",b,a);'},
+    3: {'python': 'l=int(input()); w=int(input()); print(l*w)', 'cpp': 'int l,w; cin>>l>>w; cout<<l*w;', 'java': 'int l=sc.nextInt(), w=sc.nextInt(); System.out.print(l*w);', 'c': 'int l,w; scanf("%d%d",&l,&w); printf("%d",l*w);'},
+    4: {'python': 'n=int(input()); print("Even" if n%2==0 else "Odd")', 'cpp': 'int n; cin>>n; cout<<(n%2==0?"Even":"Odd");', 'java': 'int n=sc.nextInt(); System.out.print(n%2==0?"Even":"Odd");', 'c': 'int n; scanf("%d",&n); printf(n%2==0?"Even":"Odd");'},
+    5: {'python': 'y=int(input())\nprint("Yes" if (y%400==0 or (y%4==0 and y%100!=0)) else "No")', 'cpp': 'int y; cin>>y; cout<<((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");', 'java': 'int y=sc.nextInt(); System.out.print((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");', 'c': 'int y; scanf("%d",&y); printf((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");'},
+    6: {'python': 'a,b,c=map(int,input().split()); print(max(a,b,c))', 'cpp': 'int a,b,c; cin>>a>>b>>c; cout<<max(a,max(b,c));', 'java': 'int a=sc.nextInt(),b=sc.nextInt(),c=sc.nextInt(); System.out.print(Math.max(a,Math.max(b,c)));', 'c': 'int a,b,c; scanf("%d%d%d",&a,&b,&c); int m=a>b?a:b; m=m>c?m:c; printf("%d",m);'},
+    7: {'python': 'n=int(input()); print(n*(n+1)//2)', 'cpp': 'long long n; cin>>n; cout<<n*(n+1)/2;', 'java': 'long n=sc.nextLong(); System.out.print(n*(n+1)/2);', 'c': 'long long n; scanf("%lld",&n); printf("%lld",n*(n+1)/2);'},
+    8: {'python': 'n=int(input()); ans=1\nfor i in range(2,n+1): ans*=i\nprint(ans)', 'cpp': 'int n; cin>>n; long long ans=1; for(int i=2;i<=n;i++) ans*=i; cout<<ans;', 'java': 'int n=sc.nextInt(); long ans=1; for(int i=2;i<=n;i++) ans*=i; System.out.print(ans);', 'c': 'int n; scanf("%d",&n); long long ans=1; for(int i=2;i<=n;i++) ans*=i; printf("%lld",ans);'},
+    9: {'python': 'for n in range(100,1000):\n a,b,c=n//100,(n//10)%10,n%10\n if a**3+b**3+c**3==n: print(n)', 'cpp': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) cout<<n<<" ";}', 'java': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) System.out.print(n+" ");}', 'c': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) printf("%d ",n);}'},
+    10: {'python': 'n=int(input())\nif n<2: print("No")\nelse:\n ok=True\n for i in range(2,int(n**0.5)+1):\n  if n%i==0: ok=False\n print("Yes" if ok else "No")', 'cpp': 'int n; cin>>n; bool ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=false; cout<<(ok?"Yes":"No");', 'java': 'int n=sc.nextInt(); boolean ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=false; System.out.print(ok?"Yes":"No");', 'c': 'int n; scanf("%d",&n); int ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=0; printf(ok?"Yes":"No");'},
+    11: {'python':'arr=list(map(int,input().split())); print(max(arr))','cpp':'int x,m=-1e9; while(cin>>x) m=max(m,x); cout<<m;','java':'int m=Integer.MIN_VALUE; while(sc.hasNextInt()) m=Math.max(m,sc.nextInt()); System.out.print(m);','c':'int x,m=-2147483647; while(scanf("%d",&x)==1){ if(x>m) m=x; } printf("%d",m);'},
+    12: {'python':'arr=input().split(); print(*arr[::-1])','cpp':'vector<string>a; string x; while(cin>>x)a.push_back(x); reverse(a.begin(),a.end()); for(string&s:a)cout<<s<<" ";','java':'List<String>a=new ArrayList<>(); while(sc.hasNext())a.add(sc.next()); Collections.reverse(a); for(String s:a)System.out.print(s+" ");','c':'思路：读入数组后从后往前输出。'},
+    13: {'python':'arr=list(map(int,input().split())); arr.sort(); print(*arr)','cpp':'vector<int>a; int x; while(cin>>x)a.push_back(x); sort(a.begin(),a.end()); for(int v:a)cout<<v<<" ";','java':'List<Integer>a=new ArrayList<>(); while(sc.hasNextInt())a.add(sc.nextInt()); Collections.sort(a); for(int v:a)System.out.print(v+" ");','c':'思路：双层循环冒泡排序后输出。'},
+    14: {'python':'s=input().lower(); print(sum(ch in "aeiou" for ch in s))','cpp':'string s; getline(cin,s); int c=0; for(char ch:s){ch=tolower(ch); if(string("aeiou").find(ch)!=string::npos)c++;} cout<<c;','java':'String s=sc.nextLine().toLowerCase(); int c=0; for(char ch:s.toCharArray()) if("aeiou".indexOf(ch)>=0) c++; System.out.print(c);','c':'思路：遍历字符串，判断是否为 a/e/i/o/u。'},
+    15: {'python':'s=input(); print("Yes" if s==s[::-1] else "No")','cpp':'string s; cin>>s; string t=s; reverse(t.begin(),t.end()); cout<<(s==t?"Yes":"No");','java':'String s=sc.next(); String t=new StringBuilder(s).reverse().toString(); System.out.print(s.equals(t)?"Yes":"No");','c':'思路：双指针从两端向中间比较。'},
+    16: {'python':'def f(n): return n if n<=1 else f(n-1)+f(n-2)\nprint(f(int(input())))','cpp':'function<long long(int)> f=[&](int n){return n<=1?n:f(n-1)+f(n-2);}; int n;cin>>n;cout<<f(n);','java':'static int f(int n){return n<=1?n:f(n-1)+f(n-2);} // main里读入后输出 f(n)','c':'思路：递归定义 F(n)=F(n-1)+F(n-2)。'},
+    17: {'python':'def h(n,a,b,c):\n if n==1: print(a,"->",c); return\n h(n-1,a,c,b); print(a,"->",c); h(n-1,b,a,c)','cpp':'思路：递归移动 n-1，再移动底盘，再移动 n-1。','java':'思路同上。','c':'思路同上。'},
+    18: {'python':'nums=list(map(int,input().split())); t=int(input()); d={}\nfor i,v in enumerate(nums):\n if t-v in d: print([d[t-v],i]); break\n d[v]=i','cpp':'思路：哈希表记录值到下标，边遍历边查 t-nums[i]。','java':'思路同上。','c':'思路：可排序+双指针或哈希实现。'},
+    19: {'python':'a=list(map(int,input().split())); x=int(input()); l,r=0,len(a)-1\nwhile l<=r:\n m=(l+r)//2\n if a[m]==x: print(m); break\n if a[m]<x: l=m+1\n else: r=m-1','cpp':'思路：标准二分模板。','java':'思路：标准二分模板。','c':'思路：标准二分模板。'},
+    20: {'python':'n=int(input()); a,b=1,1\nfor _ in range(n-1): a,b=b,a+b\nprint(a)','cpp':'思路：dp[i]=dp[i-1]+dp[i-2]，滚动变量优化。','java':'思路同上。','c':'思路同上。'},
+}
+
+DEFAULT_REFERENCE_ANSWER = {
+    'python': 'def solution():\n    pass',
+    'cpp': '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ return 0; }',
+    'java': 'public class Main { public static void main(String[] args){} }',
+    'c': '#include <stdio.h>\nint main(){ return 0; }',
+}
+
 
 
 LANGUAGE_OPTIONS = [
@@ -713,6 +760,7 @@ def index():
         current_tag=tag,
         current_diff=diff,
         mode=current_mode,
+        build_tag=BUILD_TAG,
     )
 
 
@@ -730,7 +778,7 @@ def paper():
     c.execute('SELECT DISTINCT tag FROM problems ORDER BY id')
     all_tags = [row[0] for row in c.fetchall()]
     conn.close()
-    return render_template('index.html', problems=paper_problems, all_tags=all_tags, mode='📑 智能组卷 (覆盖简单/中等/困难)')
+    return render_template('index.html', problems=paper_problems, all_tags=all_tags, mode='📑 智能组卷 (覆盖简单/中等/困难)', build_tag=BUILD_TAG)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -791,7 +839,7 @@ def problem_page(pid):
         recommendation = c.fetchone()
     conn.close()
     answer_map = PROBLEM_REFERENCE_ANSWERS.get(pid, DEFAULT_REFERENCE_ANSWER)
-    return render_template('solve.html', problem=problem, recommendation=recommendation, language_options=LANGUAGE_OPTIONS, language_templates=LANGUAGE_TEMPLATES, answer_map=answer_map)
+    return render_template('solve.html', problem=problem, recommendation=recommendation, language_options=LANGUAGE_OPTIONS, language_templates=LANGUAGE_TEMPLATES, answer_map=answer_map, build_tag=BUILD_TAG)
 
 
 @app.route('/api/recommendation_feedback', methods=['POST'])

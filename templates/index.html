@@ -46,6 +46,7 @@
     
     <div class="header">
         <h1>💻 多语言智能教学系统 · OJ 平台</h1>
+        <span style="background:#111827;color:#fff;padding:6px 10px;border-radius:14px;font-size:12px;">{{ build_tag }}</span>
         <div class="user-panel">
             {% if session.get('user_id') %}
                 <span>👤 {{ session.get('user_id') }}</span>
