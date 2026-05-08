@@ -184,6 +184,7 @@
                 <tr>
                     <th>时间</th>
                     <th>题目</th>
+                    <th>语言</th>
                     <th>状态</th>
                     <th>推荐来源</th>
                     <th>推荐时间</th>
@@ -194,6 +195,7 @@
                 <tr v-for="log in logs">
                     <td>[[ log.timestamp ]]</td>
                     <td>题目 #[[ log.problem_id ]] / [[ log.problem_title || '未知题目' ]]</td>
+                    <td>[[ languageLabel(log.language) ]]</td>
                     <td :style="{color: log.status === 'Accepted' ? 'green' : 'red', fontWeight: 'bold'}">[[ log.status ]]</td>
                     <td>[[ log.recommendation_source || '自主练习' ]]</td>
                     <td>[[ log.recommended_at || '-' ]]</td>
@@ -238,6 +240,10 @@
                     if (score >= 80) return 'good';
                     if (score >= 60) return 'mid';
                     return 'bad';
+                },
+                languageLabel(code) {
+                    const names = {python: 'Python', cpp: 'C++', java: 'Java', c: 'C'};
+                    return names[code] || code || 'Python';
                 }
             }
         });

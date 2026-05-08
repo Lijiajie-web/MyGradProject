@@ -1,7 +1,10 @@
 import ast
 import csv
 import datetime
+import difflib
+import json
 import random
+import re
 import sqlite3
 from collections import Counter
 from io import StringIO
@@ -16,12 +19,15 @@ from flask import (
     session,
 )
 
+from problem_bank import STARTER_TEMPLATES, SUPPORTED_LANGUAGES, get_problem_records
+
 app = Flask(__name__)
 app.secret_key = '123456'
 
 DB_PATH = 'system.db'
 DEFAULT_RECOMMENDATION_SOURCE = '薄弱知识点诊断引擎'
 DIFF_NAMES = {1: '入门', 2: '进阶', 3: '挑战', 4: '专家'}
+DIFF_CLASSES = {1: 'diff-1', 2: 'diff-2', 3: 'diff-3', 4: 'diff-4'}
 SKILL_MAP = {
     '第一章': '基础语法',
     '第二章': '逻辑判断',
@@ -35,99 +41,6 @@ SKILL_KEYS = list(dict.fromkeys(SKILL_MAP.values()))
 FEEDBACK_SCORE_MAP = {'匹配': 100, '一般': 60, '不匹配': 20}
 HELPFUL_SCORE_MAP = {'有帮助': 100, '一般': 60, '没帮助': 20}
 MIN_LOGS_FOR_PERSONAL_RECOMMENDATION = 3
-BUILD_TAG = 'v2026.05-multilang'
-
-
-LANGUAGE_OPTIONS = [
-    ('python', 'Python'),
-    ('cpp', 'C++'),
-    ('java', 'Java'),
-    ('c', 'C'),
-]
-
-LANGUAGE_TEMPLATES = {
-    'python': '# 请在这里编写 Python 代码\n',
-    'cpp': '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n',
-    'java': 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n    }\n}\n',
-    'c': '#include <stdio.h>\n\nint main() {\n    return 0;\n}\n',
-}
-
-PROBLEM_REFERENCE_ANSWERS = {
-    1: {'python': 'print("Hello World")', 'cpp': 'cout << "Hello World";', 'java': 'System.out.print("Hello World");', 'c': 'printf("Hello World");'},
-    2: {'python': 'a, b = input().split()\nprint(b, a)', 'cpp': 'string a,b; cin>>a>>b; cout<<b<<" "<<a;', 'java': 'String a=sc.next(), b=sc.next(); System.out.print(b+" "+a);', 'c': 'int a,b; scanf("%d%d",&a,&b); printf("%d %d",b,a);'},
-    3: {'python': 'l=int(input()); w=int(input()); print(l*w)', 'cpp': 'int l,w; cin>>l>>w; cout<<l*w;', 'java': 'int l=sc.nextInt(), w=sc.nextInt(); System.out.print(l*w);', 'c': 'int l,w; scanf("%d%d",&l,&w); printf("%d",l*w);'},
-    4: {'python': 'n=int(input()); print("Even" if n%2==0 else "Odd")', 'cpp': 'int n; cin>>n; cout<<(n%2==0?"Even":"Odd");', 'java': 'int n=sc.nextInt(); System.out.print(n%2==0?"Even":"Odd");', 'c': 'int n; scanf("%d",&n); printf(n%2==0?"Even":"Odd");'},
-    5: {'python': 'y=int(input())\nprint("Yes" if (y%400==0 or (y%4==0 and y%100!=0)) else "No")', 'cpp': 'int y; cin>>y; cout<<((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");', 'java': 'int y=sc.nextInt(); System.out.print((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");', 'c': 'int y; scanf("%d",&y); printf((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");'},
-    6: {'python': 'a,b,c=map(int,input().split()); print(max(a,b,c))', 'cpp': 'int a,b,c; cin>>a>>b>>c; cout<<max(a,max(b,c));', 'java': 'int a=sc.nextInt(),b=sc.nextInt(),c=sc.nextInt(); System.out.print(Math.max(a,Math.max(b,c)));', 'c': 'int a,b,c; scanf("%d%d%d",&a,&b,&c); int m=a>b?a:b; m=m>c?m:c; printf("%d",m);'},
-    7: {'python': 'n=int(input()); print(n*(n+1)//2)', 'cpp': 'long long n; cin>>n; cout<<n*(n+1)/2;', 'java': 'long n=sc.nextLong(); System.out.print(n*(n+1)/2);', 'c': 'long long n; scanf("%lld",&n); printf("%lld",n*(n+1)/2);'},
-    8: {'python': 'n=int(input()); ans=1\nfor i in range(2,n+1): ans*=i\nprint(ans)', 'cpp': 'int n; cin>>n; long long ans=1; for(int i=2;i<=n;i++) ans*=i; cout<<ans;', 'java': 'int n=sc.nextInt(); long ans=1; for(int i=2;i<=n;i++) ans*=i; System.out.print(ans);', 'c': 'int n; scanf("%d",&n); long long ans=1; for(int i=2;i<=n;i++) ans*=i; printf("%lld",ans);'},
-    9: {'python': 'for n in range(100,1000):\n a,b,c=n//100,(n//10)%10,n%10\n if a**3+b**3+c**3==n: print(n)', 'cpp': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) cout<<n<<" ";}', 'java': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) System.out.print(n+" ");}', 'c': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) printf("%d ",n);}'},
-    10: {'python': 'n=int(input())\nif n<2: print("No")\nelse:\n ok=True\n for i in range(2,int(n**0.5)+1):\n  if n%i==0: ok=False\n print("Yes" if ok else "No")', 'cpp': 'int n; cin>>n; bool ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=false; cout<<(ok?"Yes":"No");', 'java': 'int n=sc.nextInt(); boolean ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=false; System.out.print(ok?"Yes":"No");', 'c': 'int n; scanf("%d",&n); int ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=0; printf(ok?"Yes":"No");'},
-    11: {'python':'arr=list(map(int,input().split())); print(max(arr))','cpp':'int x,m=-1e9; while(cin>>x) m=max(m,x); cout<<m;','java':'int m=Integer.MIN_VALUE; while(sc.hasNextInt()) m=Math.max(m,sc.nextInt()); System.out.print(m);','c':'int x,m=-2147483647; while(scanf("%d",&x)==1){ if(x>m) m=x; } printf("%d",m);'},
-    12: {'python':'arr=input().split(); print(*arr[::-1])','cpp':'vector<string>a; string x; while(cin>>x)a.push_back(x); reverse(a.begin(),a.end()); for(string&s:a)cout<<s<<" ";','java':'List<String>a=new ArrayList<>(); while(sc.hasNext())a.add(sc.next()); Collections.reverse(a); for(String s:a)System.out.print(s+" ");','c':'思路：读入数组后从后往前输出。'},
-    13: {'python':'arr=list(map(int,input().split())); arr.sort(); print(*arr)','cpp':'vector<int>a; int x; while(cin>>x)a.push_back(x); sort(a.begin(),a.end()); for(int v:a)cout<<v<<" ";','java':'List<Integer>a=new ArrayList<>(); while(sc.hasNextInt())a.add(sc.nextInt()); Collections.sort(a); for(int v:a)System.out.print(v+" ");','c':'思路：双层循环冒泡排序后输出。'},
-    14: {'python':'s=input().lower(); print(sum(ch in "aeiou" for ch in s))','cpp':'string s; getline(cin,s); int c=0; for(char ch:s){ch=tolower(ch); if(string("aeiou").find(ch)!=string::npos)c++;} cout<<c;','java':'String s=sc.nextLine().toLowerCase(); int c=0; for(char ch:s.toCharArray()) if("aeiou".indexOf(ch)>=0) c++; System.out.print(c);','c':'思路：遍历字符串，判断是否为 a/e/i/o/u。'},
-    15: {'python':'s=input(); print("Yes" if s==s[::-1] else "No")','cpp':'string s; cin>>s; string t=s; reverse(t.begin(),t.end()); cout<<(s==t?"Yes":"No");','java':'String s=sc.next(); String t=new StringBuilder(s).reverse().toString(); System.out.print(s.equals(t)?"Yes":"No");','c':'思路：双指针从两端向中间比较。'},
-    16: {'python':'def f(n): return n if n<=1 else f(n-1)+f(n-2)\nprint(f(int(input())))','cpp':'function<long long(int)> f=[&](int n){return n<=1?n:f(n-1)+f(n-2);}; int n;cin>>n;cout<<f(n);','java':'static int f(int n){return n<=1?n:f(n-1)+f(n-2);} // main里读入后输出 f(n)','c':'思路：递归定义 F(n)=F(n-1)+F(n-2)。'},
-    17: {'python':'def h(n,a,b,c):\n if n==1: print(a,"->",c); return\n h(n-1,a,c,b); print(a,"->",c); h(n-1,b,a,c)','cpp':'思路：递归移动 n-1，再移动底盘，再移动 n-1。','java':'思路同上。','c':'思路同上。'},
-    18: {'python':'nums=list(map(int,input().split())); t=int(input()); d={}\nfor i,v in enumerate(nums):\n if t-v in d: print([d[t-v],i]); break\n d[v]=i','cpp':'思路：哈希表记录值到下标，边遍历边查 t-nums[i]。','java':'思路同上。','c':'思路：可排序+双指针或哈希实现。'},
-    19: {'python':'a=list(map(int,input().split())); x=int(input()); l,r=0,len(a)-1\nwhile l<=r:\n m=(l+r)//2\n if a[m]==x: print(m); break\n if a[m]<x: l=m+1\n else: r=m-1','cpp':'思路：标准二分模板。','java':'思路：标准二分模板。','c':'思路：标准二分模板。'},
-    20: {'python':'n=int(input()); a,b=1,1\nfor _ in range(n-1): a,b=b,a+b\nprint(a)','cpp':'思路：dp[i]=dp[i-1]+dp[i-2]，滚动变量优化。','java':'思路同上。','c':'思路同上。'},
-}
-
-DEFAULT_REFERENCE_ANSWER = {
-    'python': 'def solution():\n    pass',
-    'cpp': '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ return 0; }',
-    'java': 'public class Main { public static void main(String[] args){} }',
-    'c': '#include <stdio.h>\nint main(){ return 0; }',
-}
-
-
-
-LANGUAGE_OPTIONS = [
-    ('python', 'Python'),
-    ('cpp', 'C++'),
-    ('java', 'Java'),
-    ('c', 'C'),
-]
-
-LANGUAGE_TEMPLATES = {
-    'python': '# 请在这里编写 Python 代码\n',
-    'cpp': '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    return 0;\n}\n',
-    'java': 'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n    }\n}\n',
-    'c': '#include <stdio.h>\n\nint main() {\n    return 0;\n}\n',
-}
-
-PROBLEM_REFERENCE_ANSWERS = {
-    1: {'python': 'print("Hello World")', 'cpp': 'cout << "Hello World";', 'java': 'System.out.print("Hello World");', 'c': 'printf("Hello World");'},
-    2: {'python': 'a, b = input().split()\nprint(b, a)', 'cpp': 'string a,b; cin>>a>>b; cout<<b<<" "<<a;', 'java': 'String a=sc.next(), b=sc.next(); System.out.print(b+" "+a);', 'c': 'int a,b; scanf("%d%d",&a,&b); printf("%d %d",b,a);'},
-    3: {'python': 'l=int(input()); w=int(input()); print(l*w)', 'cpp': 'int l,w; cin>>l>>w; cout<<l*w;', 'java': 'int l=sc.nextInt(), w=sc.nextInt(); System.out.print(l*w);', 'c': 'int l,w; scanf("%d%d",&l,&w); printf("%d",l*w);'},
-    4: {'python': 'n=int(input()); print("Even" if n%2==0 else "Odd")', 'cpp': 'int n; cin>>n; cout<<(n%2==0?"Even":"Odd");', 'java': 'int n=sc.nextInt(); System.out.print(n%2==0?"Even":"Odd");', 'c': 'int n; scanf("%d",&n); printf(n%2==0?"Even":"Odd");'},
-    5: {'python': 'y=int(input())\nprint("Yes" if (y%400==0 or (y%4==0 and y%100!=0)) else "No")', 'cpp': 'int y; cin>>y; cout<<((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");', 'java': 'int y=sc.nextInt(); System.out.print((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");', 'c': 'int y; scanf("%d",&y); printf((y%400==0||(y%4==0&&y%100!=0))?"Yes":"No");'},
-    6: {'python': 'a,b,c=map(int,input().split()); print(max(a,b,c))', 'cpp': 'int a,b,c; cin>>a>>b>>c; cout<<max(a,max(b,c));', 'java': 'int a=sc.nextInt(),b=sc.nextInt(),c=sc.nextInt(); System.out.print(Math.max(a,Math.max(b,c)));', 'c': 'int a,b,c; scanf("%d%d%d",&a,&b,&c); int m=a>b?a:b; m=m>c?m:c; printf("%d",m);'},
-    7: {'python': 'n=int(input()); print(n*(n+1)//2)', 'cpp': 'long long n; cin>>n; cout<<n*(n+1)/2;', 'java': 'long n=sc.nextLong(); System.out.print(n*(n+1)/2);', 'c': 'long long n; scanf("%lld",&n); printf("%lld",n*(n+1)/2);'},
-    8: {'python': 'n=int(input()); ans=1\nfor i in range(2,n+1): ans*=i\nprint(ans)', 'cpp': 'int n; cin>>n; long long ans=1; for(int i=2;i<=n;i++) ans*=i; cout<<ans;', 'java': 'int n=sc.nextInt(); long ans=1; for(int i=2;i<=n;i++) ans*=i; System.out.print(ans);', 'c': 'int n; scanf("%d",&n); long long ans=1; for(int i=2;i<=n;i++) ans*=i; printf("%lld",ans);'},
-    9: {'python': 'for n in range(100,1000):\n a,b,c=n//100,(n//10)%10,n%10\n if a**3+b**3+c**3==n: print(n)', 'cpp': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) cout<<n<<" ";}', 'java': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) System.out.print(n+" ");}', 'c': 'for(int n=100;n<1000;n++){int a=n/100,b=n/10%10,c=n%10; if(a*a*a+b*b*b+c*c*c==n) printf("%d ",n);}'},
-    10: {'python': 'n=int(input())\nif n<2: print("No")\nelse:\n ok=True\n for i in range(2,int(n**0.5)+1):\n  if n%i==0: ok=False\n print("Yes" if ok else "No")', 'cpp': 'int n; cin>>n; bool ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=false; cout<<(ok?"Yes":"No");', 'java': 'int n=sc.nextInt(); boolean ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=false; System.out.print(ok?"Yes":"No");', 'c': 'int n; scanf("%d",&n); int ok=n>=2; for(int i=2;i*i<=n&&ok;i++) if(n%i==0) ok=0; printf(ok?"Yes":"No");'},
-    11: {'python':'arr=list(map(int,input().split())); print(max(arr))','cpp':'int x,m=-1e9; while(cin>>x) m=max(m,x); cout<<m;','java':'int m=Integer.MIN_VALUE; while(sc.hasNextInt()) m=Math.max(m,sc.nextInt()); System.out.print(m);','c':'int x,m=-2147483647; while(scanf("%d",&x)==1){ if(x>m) m=x; } printf("%d",m);'},
-    12: {'python':'arr=input().split(); print(*arr[::-1])','cpp':'vector<string>a; string x; while(cin>>x)a.push_back(x); reverse(a.begin(),a.end()); for(string&s:a)cout<<s<<" ";','java':'List<String>a=new ArrayList<>(); while(sc.hasNext())a.add(sc.next()); Collections.reverse(a); for(String s:a)System.out.print(s+" ");','c':'思路：读入数组后从后往前输出。'},
-    13: {'python':'arr=list(map(int,input().split())); arr.sort(); print(*arr)','cpp':'vector<int>a; int x; while(cin>>x)a.push_back(x); sort(a.begin(),a.end()); for(int v:a)cout<<v<<" ";','java':'List<Integer>a=new ArrayList<>(); while(sc.hasNextInt())a.add(sc.nextInt()); Collections.sort(a); for(int v:a)System.out.print(v+" ");','c':'思路：双层循环冒泡排序后输出。'},
-    14: {'python':'s=input().lower(); print(sum(ch in "aeiou" for ch in s))','cpp':'string s; getline(cin,s); int c=0; for(char ch:s){ch=tolower(ch); if(string("aeiou").find(ch)!=string::npos)c++;} cout<<c;','java':'String s=sc.nextLine().toLowerCase(); int c=0; for(char ch:s.toCharArray()) if("aeiou".indexOf(ch)>=0) c++; System.out.print(c);','c':'思路：遍历字符串，判断是否为 a/e/i/o/u。'},
-    15: {'python':'s=input(); print("Yes" if s==s[::-1] else "No")','cpp':'string s; cin>>s; string t=s; reverse(t.begin(),t.end()); cout<<(s==t?"Yes":"No");','java':'String s=sc.next(); String t=new StringBuilder(s).reverse().toString(); System.out.print(s.equals(t)?"Yes":"No");','c':'思路：双指针从两端向中间比较。'},
-    16: {'python':'def f(n): return n if n<=1 else f(n-1)+f(n-2)\nprint(f(int(input())))','cpp':'function<long long(int)> f=[&](int n){return n<=1?n:f(n-1)+f(n-2);}; int n;cin>>n;cout<<f(n);','java':'static int f(int n){return n<=1?n:f(n-1)+f(n-2);} // main里读入后输出 f(n)','c':'思路：递归定义 F(n)=F(n-1)+F(n-2)。'},
-    17: {'python':'def h(n,a,b,c):\n if n==1: print(a,"->",c); return\n h(n-1,a,c,b); print(a,"->",c); h(n-1,b,a,c)','cpp':'思路：递归移动 n-1，再移动底盘，再移动 n-1。','java':'思路同上。','c':'思路同上。'},
-    18: {'python':'nums=list(map(int,input().split())); t=int(input()); d={}\nfor i,v in enumerate(nums):\n if t-v in d: print([d[t-v],i]); break\n d[v]=i','cpp':'思路：哈希表记录值到下标，边遍历边查 t-nums[i]。','java':'思路同上。','c':'思路：可排序+双指针或哈希实现。'},
-    19: {'python':'a=list(map(int,input().split())); x=int(input()); l,r=0,len(a)-1\nwhile l<=r:\n m=(l+r)//2\n if a[m]==x: print(m); break\n if a[m]<x: l=m+1\n else: r=m-1','cpp':'思路：标准二分模板。','java':'思路：标准二分模板。','c':'思路：标准二分模板。'},
-    20: {'python':'n=int(input()); a,b=1,1\nfor _ in range(n-1): a,b=b,a+b\nprint(a)','cpp':'思路：dp[i]=dp[i-1]+dp[i-2]，滚动变量优化。','java':'思路同上。','c':'思路同上。'},
-}
-
-DEFAULT_REFERENCE_ANSWER = {
-    'python': 'def solution():\n    pass',
-    'cpp': '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ return 0; }',
-    'java': 'public class Main { public static void main(String[] args){} }',
-    'c': '#include <stdio.h>\nint main(){ return 0; }',
-}
-
 
 
 def get_connection():
@@ -200,6 +113,7 @@ def init_db():
         c,
         'learning_logs',
         {
+            'language': "language TEXT DEFAULT 'python'",
             'duration_seconds': 'duration_seconds INTEGER DEFAULT 0',
             'error_type': "error_type TEXT DEFAULT '未分类'",
             'pass_rate': 'pass_rate INTEGER DEFAULT 0',
@@ -213,6 +127,7 @@ def init_db():
             'completion_state': "completion_state TEXT DEFAULT '未关联推荐'",
             'effect_change': 'effect_change REAL DEFAULT 0',
             'same_type_followup_accuracy': 'same_type_followup_accuracy REAL DEFAULT 0',
+            'judge_message': 'judge_message TEXT',
         },
     )
 
@@ -262,7 +177,40 @@ def init_db():
             (19, '二分查找', 3, '第七章:算法进阶', '有序数组查找索引。', '...略...', '1 3 5, 3', '1'),
             (20, '爬楼梯', 4, '第七章:算法进阶', '动态规划求爬楼梯方法数。', '...略...', '3', '3'),
         ]
-        c.executemany('INSERT INTO problems VALUES (?,?,?,?,?,?,?,?)', data)
+        c.executemany(
+            '''INSERT INTO problems
+               (id, title, difficulty, tag, content, standard_answer, example_input, example_output)
+               VALUES (?,?,?,?,?,?,?,?)''',
+            data,
+        )
+
+    ensure_columns(
+        c,
+        'problems',
+        {
+            'answer_python': 'answer_python TEXT',
+            'answer_cpp': 'answer_cpp TEXT',
+            'answer_java': 'answer_java TEXT',
+            'answer_c': 'answer_c TEXT',
+            'supported_languages': "supported_languages TEXT DEFAULT 'python,cpp,java,c'",
+            'time_limit_ms': 'time_limit_ms INTEGER DEFAULT 1000',
+            'memory_limit_mb': 'memory_limit_mb INTEGER DEFAULT 128',
+            'test_cases': 'test_cases TEXT',
+            'judge_keywords': 'judge_keywords TEXT',
+        },
+    )
+    for record in get_problem_records():
+        c.execute(
+            '''INSERT OR REPLACE INTO problems
+               (id, title, difficulty, tag, content, standard_answer, example_input, example_output,
+                answer_python, answer_cpp, answer_java, answer_c, supported_languages,
+                time_limit_ms, memory_limit_mb, test_cases, judge_keywords)
+               VALUES
+               (:id, :title, :difficulty, :tag, :content, :standard_answer, :example_input, :example_output,
+                :answer_python, :answer_cpp, :answer_java, :answer_c, :supported_languages,
+                :time_limit_ms, :memory_limit_mb, :test_cases, :judge_keywords)''',
+            record,
+        )
 
     conn.commit()
     conn.close()
@@ -272,7 +220,52 @@ init_db()
 
 
 # --- 核心逻辑 ---
-def analyze_code_structure(code_str):
+def supported_language_list():
+    return [{'key': key, **value} for key, value in SUPPORTED_LANGUAGES.items()]
+
+
+def parse_json_list(value, default=None):
+    if default is None:
+        default = []
+    if not value:
+        return default
+    try:
+        return json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return default
+
+
+def answer_bank_for_problem(problem):
+    return {
+        'python': problem['answer_python'] or problem['standard_answer'] or '',
+        'cpp': problem['answer_cpp'] or '',
+        'java': problem['answer_java'] or '',
+        'c': problem['answer_c'] or '',
+    }
+
+
+def has_any_keyword(text, keywords):
+    lowered = (text or '').lower()
+    return any(keyword.lower() in lowered for keyword in keywords)
+
+
+def normalize_code(code):
+    return re.sub(r'\s+', '', (code or '').lower())
+
+
+def analyze_code_structure(code_str, language='python'):
+    code_str = code_str or ''
+    if language != 'python':
+        lowered = code_str.lower()
+        brace_balance = code_str.count('{') - code_str.count('}')
+        paren_balance = code_str.count('(') - code_str.count(')')
+        parse_error = '括号或花括号数量不匹配' if brace_balance != 0 or paren_balance != 0 else None
+        num_loops = len(re.findall(r'\b(for|while)\b', lowered))
+        num_vars = len(re.findall(r'\b(int|long|double|float|char|string|boolean|bool)\b', lowered))
+        function_names = re.findall(r'\b(?:int|long|double|float|char|void|boolean|bool|string)\s+([A-Za-z_]\w*)\s*\(', code_str)
+        has_recursion = any(len(re.findall(rf'\b{name}\s*\(', code_str)) > 1 for name in function_names)
+        return num_vars, num_loops, has_recursion, parse_error
+
     try:
         tree = ast.parse(code_str)
         num_vars = 0
@@ -300,13 +293,14 @@ def extract_knowledge_point(tag_value):
     return SKILL_MAP.get(chapter, chapter)
 
 
-def classify_error_type(code, status, parse_error, pass_rate, has_recursion, num_loops):
+def classify_error_type(code, status, parse_error, pass_rate, has_recursion, num_loops, language='python'):
     if parse_error:
-        return '语法错误'
+        return '语法结构疑似错误'
     if status == 'Accepted':
         return '无明显错误'
     lowered = (code or '').lower()
-    if 'print' not in lowered and 'return' not in lowered:
+    lang_meta = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES['python'])
+    if not has_any_keyword(lowered, lang_meta['output_keywords']):
         return '输出缺失'
     if 'if' not in lowered and 'for' not in lowered and 'while' not in lowered and pass_rate < 60:
         return '逻辑分支缺失'
@@ -317,7 +311,34 @@ def classify_error_type(code, status, parse_error, pass_rate, has_recursion, num
     return '测试用例未覆盖'
 
 
-def calculate_pass_metrics(code, has_recursion, num_loops):
+def calculate_pass_metrics(code, has_recursion, num_loops, language='python', problem=None):
+    lang_meta = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES['python'])
+    checks = []
+    checks.append(bool(code and len(code.strip()) > 5))
+    checks.append(has_any_keyword(code, lang_meta['output_keywords']))
+    needs_input = bool(problem and (problem['example_input'] or '').strip() not in {'', '无'})
+    checks.append((not needs_input) or has_any_keyword(code, lang_meta['read_keywords']))
+    if problem and problem['judge_keywords']:
+        keywords = parse_json_list(problem['judge_keywords'])
+        matched = sum(1 for keyword in keywords if keyword.lower() in (code or '').lower())
+        checks.append(matched >= max(1, min(2, len(keywords) // 2)))
+    if problem:
+        answer = answer_bank_for_problem(problem).get(language, '')
+        similarity = difflib.SequenceMatcher(None, normalize_code(answer), normalize_code(code)).ratio() if answer and code else 0
+        checks.append(similarity >= 0.16 or len(normalize_code(code)) >= 24)
+
+    pass_count = sum(1 for item in checks if item)
+    total_checks = max(1, len(checks))
+    pass_rate = int((pass_count / total_checks) * 100)
+    status = 'Accepted' if pass_rate >= 85 else ('Partial Accepted' if pass_rate > 0 else 'Wrong Answer')
+    memory_base = lang_meta.get('memory_base', 8.0)
+    time_factor = lang_meta.get('time_factor', 1.0)
+    memory_usage = round(memory_base + (len(code.splitlines()) * 0.1) + random.uniform(0, 0.5), 1)
+    run_time = int((20 + (num_loops * 10) + (30 if has_recursion else 0) + random.randint(0, 10)) * time_factor)
+    return pass_count, pass_rate, status, memory_usage, run_time, total_checks
+
+
+def old_calculate_pass_metrics(code, has_recursion, num_loops):
     pass_count = 0
     if code and len(code.strip()) > 5:
         pass_count = 1
@@ -730,6 +751,9 @@ def row_to_dict(row):
 def index():
     tag = request.args.get('tag')
     diff = request.args.get('diff')
+    lang = request.args.get('lang', 'python')
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = 'python'
 
     conn = get_connection()
     c = conn.cursor()
@@ -759,13 +783,17 @@ def index():
         all_tags=all_tags,
         current_tag=tag,
         current_diff=diff,
+        current_lang=lang,
+        languages=supported_language_list(),
         mode=current_mode,
-        build_tag=BUILD_TAG,
     )
 
 
 @app.route('/paper')
 def paper():
+    lang = request.args.get('lang', 'python')
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = 'python'
     conn = get_connection()
     c = conn.cursor()
     paper_problems = []
@@ -778,7 +806,16 @@ def paper():
     c.execute('SELECT DISTINCT tag FROM problems ORDER BY id')
     all_tags = [row[0] for row in c.fetchall()]
     conn.close()
-    return render_template('index.html', problems=paper_problems, all_tags=all_tags, mode='📑 智能组卷 (覆盖简单/中等/困难)', build_tag=BUILD_TAG)
+    return render_template(
+        'index.html',
+        problems=paper_problems,
+        all_tags=all_tags,
+        current_tag=None,
+        current_diff=None,
+        current_lang=lang,
+        languages=supported_language_list(),
+        mode='📑 智能组卷 (覆盖简单/中等/困难)',
+    )
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -823,6 +860,9 @@ def logout():
 
 @app.route('/problem/<int:pid>')
 def problem_page(pid):
+    lang = request.args.get('lang', 'python')
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = 'python'
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM problems WHERE id=?', (pid,))
@@ -838,8 +878,15 @@ def problem_page(pid):
         )
         recommendation = c.fetchone()
     conn.close()
-    answer_map = PROBLEM_REFERENCE_ANSWERS.get(pid, DEFAULT_REFERENCE_ANSWER)
-    return render_template('solve.html', problem=problem, recommendation=recommendation, language_options=LANGUAGE_OPTIONS, language_templates=LANGUAGE_TEMPLATES, answer_map=answer_map, build_tag=BUILD_TAG)
+    return render_template(
+        'solve.html',
+        problem=problem,
+        recommendation=recommendation,
+        language_options=supported_language_list(),
+        language_templates=STARTER_TEMPLATES,
+        answer_map=answer_bank_for_problem(problem),
+        current_lang=lang,
+    )
 
 
 @app.route('/api/recommendation_feedback', methods=['POST'])
@@ -899,21 +946,33 @@ def submit_code():
         data = request.json or {}
         pid = data.get('pid')
         code = data.get('code', '')
+        language = data.get('language', 'python')
+        if language not in SUPPORTED_LANGUAGES:
+            language = 'python'
         duration_seconds = max(1, int(data.get('duration_seconds') or 1))
         if not code.strip():
             return jsonify({'status': 'Error', 'msg': '代码不能为空'})
-
-        num_vars, num_loops, has_recursion, parse_error = analyze_code_structure(code)
-        pass_count, pass_rate, status, memory_usage, run_time = calculate_pass_metrics(code, has_recursion, num_loops)
-        error_type = classify_error_type(code, status, parse_error, pass_rate, has_recursion, num_loops)
 
         current_user = session.get('user_id', '匿名用户')
         now = datetime.datetime.now().isoformat(sep=' ', timespec='seconds')
 
         conn = get_connection()
         c = conn.cursor()
-        c.execute('SELECT tag, difficulty FROM problems WHERE id=?', (pid,))
+        c.execute('SELECT * FROM problems WHERE id=?', (pid,))
         problem_meta = c.fetchone()
+        if not problem_meta:
+            conn.close()
+            return jsonify({'status': 'Error', 'msg': '题目不存在'})
+
+        num_vars, num_loops, has_recursion, parse_error = analyze_code_structure(code, language)
+        pass_count, pass_rate, status, memory_usage, run_time, total_checks = calculate_pass_metrics(
+            code,
+            has_recursion,
+            num_loops,
+            language,
+            problem_meta,
+        )
+        error_type = classify_error_type(code, status, parse_error, pass_rate, has_recursion, num_loops, language)
         knowledge_point = extract_knowledge_point(problem_meta['tag']) if problem_meta else '综合能力'
 
         c.execute(
@@ -931,16 +990,18 @@ def submit_code():
 
         c.execute(
             '''INSERT INTO learning_logs
-               (user_id, problem_id, code, status, timestamp, duration_seconds, error_type, pass_rate,
+               (user_id, problem_id, code, status, timestamp, language, duration_seconds, error_type, pass_rate,
                 memory_usage, run_time_ms, knowledge_point, difficulty_snapshot, recommendation_id,
-                recommendation_source, recommended_at, completion_state, effect_change, same_type_followup_accuracy)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)''',
+                recommendation_source, recommended_at, completion_state, effect_change, same_type_followup_accuracy,
+                judge_message)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)''',
             (
                 current_user,
                 pid,
                 code,
                 status,
                 now,
+                language,
                 duration_seconds,
                 error_type,
                 pass_rate,
@@ -952,6 +1013,7 @@ def submit_code():
                 recommendation_source,
                 recommended_at,
                 completion_state,
+                f"{SUPPORTED_LANGUAGES[language]['name']} 提交完成，通过 {pass_count}/{total_checks} 项检查。",
             ),
         )
 
@@ -968,11 +1030,24 @@ def submit_code():
 
         conn.close()
 
-        test_cases = [
-            {'name': '基础样例', 'passed': pass_count >= 1},
-            {'name': '边界测试', 'passed': pass_count >= 2},
-            {'name': '压力测试', 'passed': pass_count >= 3},
-        ]
+        raw_cases = parse_json_list(problem_meta['test_cases'])
+        if raw_cases:
+            estimated_passed = min(len(raw_cases), round(pass_rate / 100 * len(raw_cases)))
+            test_cases = [
+                {
+                    'name': case.get('name', f'测试点 {index + 1}'),
+                    'input': case.get('input', ''),
+                    'expected': case.get('output', ''),
+                    'passed': index < estimated_passed,
+                }
+                for index, case in enumerate(raw_cases)
+            ]
+        else:
+            test_cases = [
+                {'name': '基础样例', 'passed': pass_count >= 1},
+                {'name': '边界测试', 'passed': pass_count >= 2},
+                {'name': '压力测试', 'passed': pass_count >= 3},
+            ]
         feedback = '运行完成' if not parse_error else '检测到语法问题，建议先修复后再提交'
         effect_text = None
         if evaluated_rec:
@@ -989,11 +1064,13 @@ def submit_code():
                 'pass_rate': pass_rate,
                 'memory': memory_usage,
                 'run_time': run_time,
+                'language': SUPPORTED_LANGUAGES[language]['name'],
                 'test_cases': test_cases,
                 'feedback': feedback,
-                'ast_analysis': f"AST分析: {num_vars}个变量, {num_loops}个循环, 错误类型: {error_type}",
+                'ast_analysis': f"{SUPPORTED_LANGUAGES[language]['name']} 结构分析: {num_vars}个变量/声明, {num_loops}个循环, 错误类型: {error_type}",
                 'error_type': error_type,
                 'effect_text': effect_text,
+                'judge_message': f"{SUPPORTED_LANGUAGES[language]['name']} 提交完成，通过 {pass_count}/{total_checks} 项检查。",
             }
         )
     except Exception as e:
@@ -1054,9 +1131,9 @@ def export_data():
     conn = get_connection()
     c = conn.cursor()
     c.execute(
-        '''SELECT id, user_id, problem_id, status, timestamp, duration_seconds, error_type, pass_rate,
+        '''SELECT id, user_id, problem_id, language, status, timestamp, duration_seconds, error_type, pass_rate,
                   knowledge_point, difficulty_snapshot, recommendation_source, recommended_at,
-                  completion_state, effect_change, same_type_followup_accuracy
+                  completion_state, effect_change, same_type_followup_accuracy, judge_message
            FROM learning_logs ORDER BY timestamp DESC'''
     )
     logs = c.fetchall()
@@ -1064,9 +1141,9 @@ def export_data():
     si = StringIO()
     cw = csv.writer(si)
     cw.writerow([
-        'ID', 'User', 'ProblemId', 'Status', 'Time', 'DurationSeconds', 'ErrorType', 'PassRate',
+        'ID', 'User', 'ProblemId', 'Language', 'Status', 'Time', 'DurationSeconds', 'ErrorType', 'PassRate',
         'KnowledgePoint', 'DifficultySnapshot', 'RecommendationSource', 'RecommendedAt',
-        'CompletionState', 'EffectChange', 'SameTypeFollowupAccuracy',
+        'CompletionState', 'EffectChange', 'SameTypeFollowupAccuracy', 'JudgeMessage',
     ])
     cw.writerows([tuple(row) for row in logs])
     resp = make_response(si.getvalue())

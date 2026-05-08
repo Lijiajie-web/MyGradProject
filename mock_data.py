@@ -15,6 +15,7 @@ c.execute("DELETE FROM learning_logs")
 start_date = datetime.now() - timedelta(days=30)
 
 # 生成 30 条记录
+languages = ["python", "cpp", "java", "c"]
 for i in range(30):
     # 随机时间
     random_days = random.randint(0, 30)
@@ -28,11 +29,31 @@ for i in range(30):
     status = "Accepted" if is_accepted else "Wrong Answer"
     
     # 随便写点代码充数
-    code = "print('Simulated Code')"
+    language = random.choice(languages)
+    code = {
+        "python": "print('Simulated Code')",
+        "cpp": '#include <bits/stdc++.h>\nusing namespace std;\nint main(){ cout << "Simulated Code"; }',
+        "java": 'public class Main { public static void main(String[] args){ System.out.print("Simulated Code"); } }',
+        "c": '#include <stdio.h>\nint main(){ printf("Simulated Code"); return 0; }',
+    }[language]
     
     # 插入数据库
-    c.execute("INSERT INTO learning_logs (user_id, problem_id, code, status, timestamp) VALUES (?, ?, ?, ?, ?)",
-              ("student_01", pid, code, status, log_time))
+    c.execute(
+        """INSERT INTO learning_logs
+           (user_id, problem_id, code, status, timestamp, language, duration_seconds, error_type, pass_rate)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            "student_01",
+            pid,
+            code,
+            status,
+            log_time,
+            language,
+            random.randint(30, 260),
+            "无明显错误" if is_accepted else "测试用例未覆盖",
+            100 if is_accepted else 40,
+        ),
+    )
 
 conn.commit()
 print(f"✅ 成功插入 30 条模拟数据！请刷新 Dashboard 查看效果。")
