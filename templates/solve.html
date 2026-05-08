@@ -1,47 +1,153 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>多语言编程挑战 - {{ problem[1] }}</title>
+    <title>面向程序设计挑战 - {{ problem[1] }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f0f2f5; min-height: 90vh; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .container { display: flex; gap: 20px; min-height: 82vh; }
-        .problem-desc { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-y: auto; }
-        .editor-area { flex: 1.4; display: flex; flex-direction: column; }
-        .CodeMirror { flex: 1; border-radius: 8px; font-size: 16px; font-family: 'Consolas', monospace; }
-        .action-bar { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .btn-submit { background: #2196F3; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .btn-answer { background: #607d8b; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        .btn-template { background: #455a64; color: white; border: none; padding: 10px 16px; border-radius: 5px; cursor: pointer; margin-left: 8px; }
-        .tag { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 5px; }
-        .language-select { display:flex; align-items:center; gap:8px; margin:0 0 12px; background:white; padding:10px 12px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
-        .language-select select { border:1px solid #d9e2ec; border-radius:6px; padding:7px 10px; font-weight:bold; color:#1565c0; background:#f8fbff; }
-        .oj-note { color:#607d8b; font-size:0.9em; }
-        .case-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9em; }
-        .case-pass { color: green; font-weight: bold; }
-        .case-fail { color: red; font-weight: bold; }
-        .notice { margin-top: 20px; padding: 14px; border-radius: 8px; line-height: 1.7; }
+        :root {
+            --bg: #eef3f9;
+            --panel: rgba(255,255,255,0.94);
+            --line: #e5eaf2;
+            --text: #172033;
+            --muted: #667085;
+            --blue: #2563eb;
+            --green: #22a06b;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --shadow: 0 18px 45px rgba(20, 32, 54, 0.1);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 18px;
+            background:
+                linear-gradient(135deg, rgba(37,99,235,0.1), transparent 34%),
+                linear-gradient(225deg, rgba(34,160,107,0.1), transparent 34%),
+                var(--bg);
+            min-height: 94vh;
+            color: var(--text);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+            padding: 13px 16px;
+            border: 1px solid rgba(255,255,255,0.75);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.82);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(12px);
+        }
+        .back-link { text-decoration:none; color:#475569; font-weight:800; }
+        .challenge-title { font-weight: 900; color: #111827; }
+        .container { display: flex; gap: 18px; min-height: 82vh; }
+        .container.focus-mode .problem-desc { display: none; }
+        .container.focus-mode .editor-area { flex: 1; }
+        .problem-desc {
+            flex: 0.95;
+            background: var(--panel);
+            padding: 22px;
+            border: 1px solid rgba(229,234,242,0.86);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+        }
+        .problem-desc h1 { margin-top: 0; font-size: 1.9em; }
+        .editor-area {
+            flex: 1.35;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            background: #121826;
+            border: 1px solid rgba(17,24,39,0.15);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: var(--shadow);
+        }
+        .CodeMirror {
+            flex: 1;
+            min-height: 470px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: Consolas, "Cascadia Code", monospace;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .editor-topline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #cbd5e1;
+            padding: 2px 4px 12px;
+            gap: 12px;
+        }
+        .editor-tab { font-weight: 900; color: white; }
+        .code-stats { color: #94a3b8; font-size: 0.88em; }
+        .action-bar { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .btn-submit { background: var(--green); color: white; border: none; padding: 12px 26px; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 900; box-shadow: 0 12px 26px rgba(34,160,107,0.25); }
+        .btn-submit:hover { background: #1c8a5c; }
+        .btn-answer { background: #fff; color: #172033; border: 1px solid #dbe3ef; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 800; }
+        .btn-template, .btn-focus { background: #243044; color: white; border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 10px; cursor: pointer; margin-left: 8px; font-weight: 800; }
+        .btn-focus { background: #334155; }
+        .tag { background: #eaf2ff; color: #1553b7; padding: 4px 9px; border-radius: 8px; font-size: 0.82em; margin-right: 5px; font-weight: 800; }
+        .meta-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .meta-card {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            background: #f8fbff;
+        }
+        .meta-card strong { display: block; font-size: 1.15em; margin-top: 4px; }
+        .language-select {
+            display:flex;
+            align-items:center;
+            gap:10px;
+            margin:0 0 12px;
+            background:#f8fafc;
+            padding:11px 12px;
+            border:1px solid #dbe3ef;
+            border-radius:12px;
+        }
+        .language-select select { border:1px solid #c9d4e5; border-radius:9px; padding:8px 10px; font-weight:900; color:#1553b7; background:#fff; }
+        .oj-note { color:#64748b; font-size:0.9em; }
+        .case-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.18); font-size: 0.92em; }
+        .case-pass { color: #34d399; font-weight: 900; }
+        .case-fail { color: #fb7185; font-weight: 900; }
+        .notice { margin-top: 18px; padding: 14px; border-radius: 12px; line-height: 1.7; }
         .notice.blue { background: #eef6ff; border: 1px solid #cfe3ff; color: #0f4fa8; }
         .notice.green { background: #edf7ed; border: 1px solid #cae8ca; color: #2e7d32; }
-        .feedback-box { margin-top: 18px; padding: 14px; border-radius: 8px; border: 1px solid #f0d9b5; background: #fff8e8; }
+        .feedback-box { margin-top: 18px; padding: 14px; border-radius: 12px; border: 1px solid #f0d9b5; background: #fff8e8; }
         .feedback-row { margin: 10px 0; }
         .feedback-row button { margin-right: 8px; margin-bottom: 8px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; }
         .feedback-row button.active { background: #2196F3; color: white; border-color: #2196F3; }
         textarea.note { width: 100%; min-height: 60px; border-radius: 8px; border: 1px solid #ddd; padding: 10px; resize: vertical; }
         .btn-feedback { margin-top: 10px; background: #ff9800; color: white; border: none; padding: 10px 18px; border-radius: 20px; cursor: pointer; }
-        #answer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
-        #answer-content { background: white; width: 60%; margin: 100px auto; padding: 20px; border-radius: 8px; position: relative; }
+        #result-area { border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 14px 28px rgba(0,0,0,0.16); }
+        #answer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.62); z-index: 1000; backdrop-filter: blur(5px); }
+        #answer-content { background: white; width: min(780px, 88vw); max-height: 78vh; overflow:auto; margin: 70px auto; padding: 22px; border-radius: 16px; position: relative; box-shadow: var(--shadow); }
+        @media (max-width: 980px) {
+            .container { flex-direction: column; }
+            .meta-strip { grid-template-columns: 1fr; }
+            .action-bar { flex-direction: column; align-items: stretch; }
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="/?lang={{ current_lang }}" style="text-decoration:none; color:#666;">← 返回课程目录</a>
-        <div style="font-weight: bold;">正在挑战: {{ problem[1] }} · 多语言 OJ 模式</div>
+        <a href="/?lang={{ current_lang }}" class="back-link">← 返回课程目录</a>
+        <div class="challenge-title">正在挑战: {{ problem[1] }} · 智能评测模式</div>
     </div>
 
     <div class="container">
@@ -52,6 +158,20 @@
                 <span class="tag">{{ problem[3] }}</span>
                 <span class="tag">Python / C++ / Java / C</span>
             </p>
+            <div class="meta-strip">
+                <div class="meta-card">
+                    <span>时间限制</span>
+                    <strong>{{ problem[13] or 1000 }} ms</strong>
+                </div>
+                <div class="meta-card">
+                    <span>内存限制</span>
+                    <strong>{{ problem[14] or 128 }} MB</strong>
+                </div>
+                <div class="meta-card">
+                    <span>评测资料</span>
+                    <strong>答案 + 样例点</strong>
+                </div>
+            </div>
             <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
             <div style="line-height: 1.6; color: #444;">{{ problem[4] }}</div>
 
@@ -114,11 +234,16 @@
                 </select>
                 <span class="oj-note">切换语言会自动加载对应模板，参考答案也会同步切换。</span>
             </div>
+            <div class="editor-topline">
+                <span class="editor-tab" id="editor-filename">main.{{ 'py' if current_lang == 'python' else ('cpp' if current_lang == 'cpp' else ('java' if current_lang == 'java' else 'c')) }}</span>
+                <span class="code-stats" id="code-stats">0 行 · 0 字符</span>
+            </div>
             <textarea id="code-input">{{ language_templates[current_lang] }}</textarea>
 
             <div class="action-bar">
                 <button class="btn-answer" onclick="toggleAnswer()">🔑 参考答案</button>
                 <div>
+                    <button class="btn-focus" onclick="toggleFocusMode()">沉浸模式</button>
                     <button class="btn-template" onclick="resetTemplate()">重置模板</button>
                     <button onclick="submitCode()" class="btn-submit">🚀 提交并评测</button>
                 </div>
@@ -143,9 +268,11 @@
         {% for lang in language_options %}
             languageModes["{{ lang.key }}"] = "{{ lang.codemirror_mode }}";
         {% endfor %}
+        const languageExtensions = { python: "py", cpp: "cpp", java: "java", c: "c" };
         const editor = CodeMirror.fromTextArea(document.getElementById('code-input'), {
             mode: languageModes["{{ current_lang }}"], theme: 'dracula', lineNumbers: true, indentUnit: 4
         });
+        editor.on('change', updateCodeStats);
         const startTime = Date.now();
         const recommendationId = {{ recommendation['id'] if recommendation else 'null' }};
         const feedbackState = { match: '', help: '' };
@@ -157,6 +284,7 @@
         function changeLanguage(lang) {
             editor.setOption('mode', languageModes[lang] || 'python');
             editor.setValue(languageTemplates[lang] || '');
+            updateEditorFilename(lang);
             const url = new URL(window.location.href);
             url.searchParams.set('lang', lang);
             window.history.replaceState({}, '', url.toString());
@@ -164,6 +292,22 @@
 
         function resetTemplate() {
             editor.setValue(languageTemplates[currentLanguage()] || '');
+            updateCodeStats();
+        }
+
+        function updateEditorFilename(lang) {
+            document.getElementById('editor-filename').innerText = `main.${languageExtensions[lang] || 'txt'}`;
+        }
+
+        function updateCodeStats() {
+            const code = editor.getValue();
+            const lines = code ? code.split('\n').length : 0;
+            document.getElementById('code-stats').innerText = `${lines} 行 · ${code.length} 字符`;
+        }
+
+        function toggleFocusMode() {
+            document.querySelector('.container').classList.toggle('focus-mode');
+            setTimeout(() => editor.refresh(), 80);
         }
 
         function toggleAnswer() {
@@ -263,6 +407,8 @@
                 `;
             });
         }
+        updateEditorFilename(currentLanguage());
+        updateCodeStats();
     </script>
 </body>
 </html>

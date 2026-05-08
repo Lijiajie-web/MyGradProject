@@ -746,6 +746,39 @@ def row_to_dict(row):
     return dict(row) if row else None
 
 
+def build_home_stats(conn, user_id=None):
+    c = conn.cursor()
+    c.execute('SELECT COUNT(*) FROM problems')
+    total_problems = c.fetchone()[0]
+    c.execute('SELECT difficulty, COUNT(*) FROM problems GROUP BY difficulty')
+    diff_counts = {row[0]: row[1] for row in c.fetchall()}
+    c.execute('SELECT COUNT(DISTINCT tag) FROM problems')
+    chapter_count = c.fetchone()[0]
+    progress = {
+        'attempted': 0,
+        'accepted': 0,
+        'accept_rate': 0,
+    }
+    if user_id:
+        c.execute('SELECT COUNT(DISTINCT problem_id) FROM learning_logs WHERE user_id=?', (user_id,))
+        progress['attempted'] = c.fetchone()[0]
+        c.execute(
+            '''SELECT COUNT(DISTINCT problem_id)
+               FROM learning_logs
+               WHERE user_id=? AND status='Accepted' ''',
+            (user_id,),
+        )
+        progress['accepted'] = c.fetchone()[0]
+        progress['accept_rate'] = int((progress['accepted'] / max(1, progress['attempted'])) * 100)
+    return {
+        'total': total_problems,
+        'chapters': chapter_count,
+        'diff_counts': diff_counts,
+        'language_count': len(SUPPORTED_LANGUAGES),
+        'progress': progress,
+    }
+
+
 # --- 路由 ---
 @app.route('/')
 def index():
@@ -774,6 +807,7 @@ def index():
     problems = c.fetchall()
     c.execute('SELECT DISTINCT tag FROM problems ORDER BY id')
     all_tags = [row[0] for row in c.fetchall()]
+    home_stats = build_home_stats(conn, session.get('user_id'))
     conn.close()
 
     current_mode = ' + '.join(mode_text) if mode_text else '全部题目库'
@@ -784,7 +818,9 @@ def index():
         current_tag=tag,
         current_diff=diff,
         current_lang=lang,
+        current_lang_label=SUPPORTED_LANGUAGES[lang]['name'],
         languages=supported_language_list(),
+        home_stats=home_stats,
         mode=current_mode,
     )
 
@@ -805,6 +841,7 @@ def paper():
     paper_problems.extend(c.fetchall())
     c.execute('SELECT DISTINCT tag FROM problems ORDER BY id')
     all_tags = [row[0] for row in c.fetchall()]
+    home_stats = build_home_stats(conn, session.get('user_id'))
     conn.close()
     return render_template(
         'index.html',
@@ -813,7 +850,9 @@ def paper():
         current_tag=None,
         current_diff=None,
         current_lang=lang,
+        current_lang_label=SUPPORTED_LANGUAGES[lang]['name'],
         languages=supported_language_list(),
+        home_stats=home_stats,
         mode='📑 智能组卷 (覆盖简单/中等/困难)',
     )
 
