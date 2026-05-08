@@ -5,34 +5,31 @@
     <title>面向程序设计 - 课程题库</title>
     <style>
         :root {
-            --bg: #f3f6fb;
-            --panel: rgba(255, 255, 255, 0.92);
-            --line: #e5eaf2;
-            --text: #172033;
-            --muted: #6b778c;
-            --blue: #2563eb;
-            --green: #22a06b;
-            --amber: #f59e0b;
-            --red: #ef4444;
-            --violet: #6d5dfc;
-            --shadow: 0 18px 45px rgba(20, 32, 54, 0.08);
+            --bg: #f5f5f5;
+            --panel: #ffffff;
+            --line: #dddddd;
+            --text: #333333;
+            --muted: #666666;
+            --blue: #2196F3;
+            --green: #4CAF50;
+            --amber: #FF9800;
+            --red: #E57373;
+            --violet: #673AB7;
+            --shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
 
         * { box-sizing: border-box; }
 
         body {
             font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-            max-width: 1320px;
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 20px;
             color: var(--text);
-            background:
-                linear-gradient(135deg, rgba(37, 99, 235, 0.09), transparent 35%),
-                linear-gradient(225deg, rgba(34, 160, 107, 0.09), transparent 35%),
-                var(--bg);
+            background: var(--bg);
             display: flex;
             flex-direction: column;
-            height: 96vh;
+            height: 95vh;
         }
 
         .header {
@@ -40,28 +37,17 @@
             justify-content: space-between;
             align-items: center;
             gap: 18px;
-            margin-bottom: 18px;
-            padding: 18px 20px;
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.78);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(12px);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line);
         }
 
-        .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
         .brand-mark {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            display: grid;
-            place-items: center;
-            color: white;
-            font-weight: 900;
-            background: linear-gradient(135deg, #22a06b, #2563eb 55%, #f59e0b);
-            box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+            font-size: 2em;
+            line-height: 1;
         }
-        .brand h1 { margin: 0; font-size: 2.05em; letter-spacing: 0; white-space: nowrap; }
+        .brand h1 { margin: 0; font-size: 2em; letter-spacing: 0; white-space: nowrap; }
         .brand-sub { color: var(--muted); font-size: 0.92em; margin-top: 4px; }
         .user-panel { white-space: nowrap; display: flex; gap: 10px; align-items: center; }
         .user-panel a {
@@ -69,8 +55,8 @@
             color: #2d3748;
             background: #fff;
             border: 1px solid var(--line);
-            padding: 8px 12px;
-            border-radius: 9px;
+            padding: 6px 11px;
+            border-radius: 4px;
             font-weight: 700;
         }
         .user-panel a.primary { background: var(--blue); color: white; border-color: var(--blue); }
@@ -80,69 +66,67 @@
 
         .main-content { display: flex; gap: 20px; flex: 1; overflow: hidden; }
         .sidebar {
-            width: 285px;
+            width: 250px;
             background: var(--panel);
-            padding: 18px;
-            border: 1px solid rgba(229, 234, 242, 0.8);
-            border-radius: 14px;
+            padding: 15px;
+            border-radius: 8px;
             overflow-y: auto;
-            box-shadow: var(--shadow);
         }
         .sidebar h3 {
             font-size: 1.02em;
-            color: #1f2a44;
-            margin: 18px 0 10px;
+            color: #333;
+            margin: 15px 0 10px;
             border-left: 4px solid var(--violet);
-            padding-left: 9px;
+            padding-left: 8px;
         }
         .sidebar h3:first-child { margin-top: 0; border-left-color: var(--amber); }
 
         .paper-btn {
             display: block;
-            padding: 14px;
-            background: linear-gradient(135deg, #6d5dfc, #2563eb);
+            padding: 12px;
+            background: linear-gradient(135deg, #673AB7, #512DA8);
             color: white;
             text-align: center;
-            border-radius: 12px;
+            border-radius: 6px;
             text-decoration: none;
             font-weight: 800;
-            margin-bottom: 18px;
-            box-shadow: 0 12px 26px rgba(37, 99, 235, 0.23);
-            transition: 0.25s;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(103, 58, 183, 0.3);
+            transition: 0.3s;
         }
-        .paper-btn:hover { transform: translateY(-2px); }
+        .paper-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(103, 58, 183, 0.4); }
 
         .language-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 14px; }
         .language-pill {
             text-decoration: none;
-            color: #334155;
+            color: #455a64;
             background: #f8fbff;
-            border: 1px solid #dbe7ff;
-            padding: 9px 10px;
-            border-radius: 12px;
+            border: 1px solid #dbeafe;
+            padding: 7px 10px;
+            border-radius: 999px;
             font-weight: 800;
             font-size: 0.92em;
             text-align: center;
             transition: 0.2s;
         }
         .language-pill:hover { border-color: var(--blue); color: var(--blue); }
-        .language-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2); }
+        .language-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
         .link-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px 12px;
-            color: #475569;
+            color: #555;
             text-decoration: none;
-            border-radius: 10px;
-            margin-bottom: 5px;
+            border-radius: 4px;
+            margin-bottom: 4px;
             transition: 0.2s;
             font-size: 0.95em;
         }
-        .link-item:hover { background: #f4f7fb; color: var(--blue); }
-        .link-item.active { background: #eaf2ff; color: var(--blue); font-weight: 800; }
-        .mini-count { color: #94a3b8; font-size: 0.86em; }
+        .link-item:hover { background: #f0f0f0; color: #555; }
+        .link-item.active { background: #e3f2fd; color: #1976D2; font-weight: 800; }
+        .mini-count { color: #999; font-size: 0.86em; }
 
         .problem-list { flex: 1; overflow-y: auto; padding-right: 10px; }
         .overview-panel {
@@ -152,11 +136,11 @@
             margin-bottom: 14px;
         }
         .stat-card {
-            background: var(--panel);
-            border: 1px solid rgba(229, 234, 242, 0.85);
-            border-radius: 14px;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
             padding: 14px 16px;
-            box-shadow: 0 12px 30px rgba(20, 32, 54, 0.06);
+            box-shadow: var(--shadow);
         }
         .stat-label { color: var(--muted); font-size: 0.86em; }
         .stat-value { font-size: 1.45em; font-weight: 900; margin-top: 6px; }
@@ -172,12 +156,12 @@
         .mode-badge {
             display: inline-flex;
             align-items: center;
-            background: #fff8e1;
-            color: #8a5a00;
+            background: #fff3cd;
+            color: #856404;
             padding: 9px 15px;
             border-radius: 999px;
             font-size: 0.9em;
-            border: 1px solid #ffe4a6;
+            border: 1px solid #ffeeba;
             font-weight: 800;
         }
         .search-box {
@@ -188,9 +172,9 @@
             gap: 8px;
             background: #fff;
             border: 1px solid var(--line);
-            border-radius: 12px;
+            border-radius: 8px;
             padding: 9px 12px;
-            box-shadow: 0 10px 24px rgba(20, 32, 54, 0.05);
+            box-shadow: var(--shadow);
         }
         .search-box input {
             width: 100%;
@@ -202,14 +186,14 @@
         .visible-count { color: var(--muted); font-size: 0.9em; white-space: nowrap; }
 
         .problem-box {
-            background: rgba(255, 255, 255, 0.94);
-            border: 1px solid rgba(229, 234, 242, 0.85);
-            border-left: 5px solid #d8dee9;
-            padding: 18px;
-            margin-bottom: 14px;
-            border-radius: 14px;
-            box-shadow: 0 14px 32px rgba(20, 32, 54, 0.06);
-            transition: 0.22s;
+            background: white;
+            border: none;
+            border-left: 5px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            transition: 0.2s;
             position: relative;
             overflow: hidden;
         }
@@ -220,47 +204,46 @@
             top: 0;
             width: 100%;
             height: 3px;
-            background: linear-gradient(90deg, var(--green), var(--blue), var(--amber));
+            background: transparent;
             opacity: 0;
             transition: 0.22s;
         }
         .problem-box:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 18px 42px rgba(20, 32, 54, 0.12);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             border-left-color: var(--blue);
         }
-        .problem-box:hover::before { opacity: 1; }
+        .problem-box:hover::before { opacity: 0; }
         .problem-top { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
         .problem-title { margin: 0 0 10px; font-size: 1.18em; }
         .problem-id { color: #9aa7b7; font-size: 0.86em; margin-right: 7px; }
         .chapter-tag {
-            background: #f4f7fb;
-            color: #617085;
-            padding: 4px 9px;
-            border-radius: 8px;
+            background: #f5f5f5;
+            color: #666;
+            padding: 3px 8px;
+            border-radius: 4px;
             font-size: 0.85em;
             margin-right: 5px;
         }
-        .diff-tag { padding: 4px 9px; border-radius: 8px; font-size: 0.85em; font-weight: 900; color: white; }
-        .diff-1 { background-color: var(--green); }
-        .diff-2 { background-color: var(--blue); }
-        .diff-3 { background-color: var(--amber); }
-        .diff-4 { background-color: var(--red); }
+        .diff-tag { padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 900; color: white; }
+        .diff-1 { background-color: #81C784; }
+        .diff-2 { background-color: #64B5F6; }
+        .diff-3 { background-color: #FFB74D; }
+        .diff-4 { background-color: #E57373; }
         .btn {
-            background: #111827;
+            background: var(--green);
             color: white;
             border: none;
-            padding: 10px 18px;
-            border-radius: 999px;
+            padding: 8px 20px;
+            border-radius: 20px;
             cursor: pointer;
             text-decoration: none;
             font-size: 0.9em;
             font-weight: 900;
             white-space: nowrap;
-            box-shadow: 0 10px 22px rgba(17, 24, 39, 0.18);
         }
-        .btn:hover { background: var(--blue); }
-        .problem-desc-text { color: #5f6b7a; font-size: 0.94em; margin: 12px 0 0; line-height: 1.6; }
+        .btn:hover { background: #43A047; }
+        .problem-desc-text { color: #666; font-size: 0.94em; margin: 12px 0 0; line-height: 1.6; }
         .oj-meta {
             color: #607d8b;
             font-size: 0.86em;
@@ -279,7 +262,7 @@
             font-size: 0.86em;
         }
         .accept-bar { height: 8px; border-radius: 999px; background: #edf2f7; overflow: hidden; }
-        .accept-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green), var(--blue)); }
+        .accept-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #81C784, #64B5F6); }
         .empty-tip {
             text-align: center;
             color: #8a94a6;
@@ -305,7 +288,7 @@
 <body>
     <div class="header">
         <div class="brand">
-            <div class="brand-mark">AC</div>
+            <div class="brand-mark">📚</div>
             <div>
                 <h1>面向程序设计 - 智能教学系统</h1>
                 <div class="brand-sub">多语言练习、智能推荐、参考答案与学习画像一体化</div>
